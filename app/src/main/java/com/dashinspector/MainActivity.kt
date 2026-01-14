@@ -1,5 +1,6 @@
 package com.dashinspector
 
+import android.content.SharedPreferences
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -12,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.dashinspector.ui.theme.DashinspectorTheme
+import androidx.core.content.edit
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -27,6 +29,12 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+        val prefs = getSharedPreferences("test1", MODE_PRIVATE)
+        val prefs2 = getSharedPreferences("test2", MODE_PRIVATE)
+        prefs.edit { putString("key1", "value1") }
+        prefs2.edit { putString("key2", "value2") }
+
     }
 }
 
