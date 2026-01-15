@@ -44,8 +44,8 @@ class DashInspectorServer(
 
             when {
                 // API endpoints
-                uri.startsWith("/api/") -> handleApiRequest(uri, method, session)
-
+                uri.startsWith("/api/preferences") -> handlePrefsRequest(uri, method, session)
+                uri.startsWith("/api/database") -> handleDatabaseRequest(uri, method, session)
                 // Static files (Web Frontend)
                 else -> serveStaticFile(uri)
             }
@@ -56,7 +56,7 @@ class DashInspectorServer(
         )
     }
 
-    private fun handleApiRequest(uri: String, method: Method, session: IHTTPSession): Response {
+    private fun handlePrefsRequest(uri: String, method: Method, session: IHTTPSession): Response {
         // Placeholder for API request handling logic
         when (uri) {
             "/api/preferences" -> {
@@ -69,7 +69,9 @@ class DashInspectorServer(
                 )
             }
 
-            "/api/preferences/update" -> {
+            "/api/preferences/entry/add",
+            "/api/preferences/entry/update",
+            "/api/preferences/create" -> {
                 if (method != Method.POST) {
                     return newFixedLengthResponse(
                         Response.Status.METHOD_NOT_ALLOWED,
@@ -81,18 +83,14 @@ class DashInspectorServer(
                 session.parseBody(postData)
                 Log.d("DashInspectorServer", "Post data: $postData")
 
-                val updatePrefRequest = try {
-                    mGson.fromJson(
-                        postData["postData"],
-                        UpdatePrefRequest::class.java
-                    )
-                } catch (e: Exception) {
+                val prefRequest = try {
+                    mGson.fromJson(postData["postData"], PrefRequest::class.java)
+                } catch (ex: Exception) {
                     Log.e("DashInspectorServer", "Error parsing JSON")
                     null
                 }
 
-                Log.d("DashInspectorServer", "UpdatePrefRequest: $updatePrefRequest")
-                if (updatePrefRequest == null) {
+                if (prefRequest == null) {
                     return newFixedLengthResponse(
                         Response.Status.BAD_REQUEST,
                         "application/json",
@@ -100,10 +98,85 @@ class DashInspectorServer(
                     )
                 }
 
-                if (updatePrefRequest.name.isEmpty() ||
-                    updatePrefRequest.key.isEmpty() ||
-                    updatePrefRequest.type.isEmpty() ||
-                    updatePrefRequest.value.isEmpty()
+                Log.d("DashInspectorServer", "AddPrefRequest: $prefRequest")
+                if (prefRequest.name.isNullOrEmpty() ||
+                    prefRequest.type.isNullOrEmpty() ||
+                    prefRequest.key.isNullOrEmpty()
+                    ) {
+                    return newFixedLengthResponse(
+                        Response.Status.BAD_REQUEST,
+                        "application/json",
+                        "{\"error\":\"Invalid request body\"}"
+                    )
+                }
+
+                if(prefRequest.type != "String" && prefRequest.type != "Set") {
+                    if(prefRequest.value.isNullOrEmpty()) {
+                        return newFixedLengthResponse(
+                            Response.Status.BAD_REQUEST,
+                            "application/json",
+                            "{\"error\":\"Invalid request body\"}"
+                        )
+                    }
+                }
+
+                val response = mPrefsInspector.upsertPreference(
+                    prefName = prefRequest.name,
+                    key = prefRequest.key,
+                    value = prefRequest.value,
+                    type = prefRequest.type
+                )
+
+                if(response["status"] == "error") {
+                    return newFixedLengthResponse(
+                        Response.Status.BAD_REQUEST,
+                        "application/json",
+                        "{\"error\":\"${response["message"]}\"}"
+                    )
+                }
+
+                val prefAction = when(uri) {
+                    "/api/preferences/entry/add" -> PrefAction.ADD_ENTRY
+                    "/api/preferences/entry/update" -> PrefAction.UPDATE_ENTRY
+                    "/api/preferences/create" -> PrefAction.ADD_PREF
+                    else -> PrefAction.UNKNOWN
+                }
+
+                val message = when(prefAction) {
+                    PrefAction.ADD_ENTRY -> "Entry added successfully"
+                    PrefAction.UPDATE_ENTRY -> "Entry updated successfully"
+                    PrefAction.ADD_PREF -> "SharedPreferences '${prefRequest.name}' created successfully"
+                    else -> "Operation successful"
+                }
+
+                return newFixedLengthResponse(
+                    Response.Status.OK,
+                    "application/json",
+                    "{\"message\":\"$message\"}"
+                )
+            }
+            "/api/preferences/entry/remove" -> {
+                if (method != Method.POST) {
+                    return newFixedLengthResponse(
+                        Response.Status.METHOD_NOT_ALLOWED,
+                        "application/json",
+                        "{\"error\":\"Method not allowed\"}"
+                    )
+                }
+                val postData = HashMap<String, String>()
+                session.parseBody(postData)
+                Log.d("DashInspectorServer", "Post data: $postData")
+
+                val removeEntryRequest = try {
+                    mGson.fromJson(postData["postData"], RemoveEntryRequest::class.java)
+                } catch (ex: Exception) {
+                    Log.e("DashInspectorServer", "Error parsing JSON")
+                    null
+                }
+
+                if (removeEntryRequest == null ||
+                    removeEntryRequest.name.isNullOrEmpty() ||
+                    removeEntryRequest.key.isNullOrEmpty()
                 ) {
                     return newFixedLengthResponse(
                         Response.Status.BAD_REQUEST,
@@ -112,22 +185,72 @@ class DashInspectorServer(
                     )
                 }
 
-                val response = mPrefsInspector.updatePreference(
-                    updatePrefRequest.name,
-                    updatePrefRequest.key,
-                    updatePrefRequest.value,
-                    updatePrefRequest.type
+                Log.d("DashInspectorServer", "RemoveEntryRequest: $removeEntryRequest")
+
+                val response = mPrefsInspector.removeEntry(
+                    prefName = removeEntryRequest.name,
+                    key = removeEntryRequest.key
                 )
 
-                // This is a placeholder implementation
+                if(response["status"] == "error") {
+                    return newFixedLengthResponse(
+                        Response.Status.BAD_REQUEST,
+                        "application/json",
+                        "{\"error\":\"${response["message"]}\"}"
+                    )
+                }
+
                 return newFixedLengthResponse(
-                    if (response["status"] == "success") Response.Status.OK else Response.Status.BAD_REQUEST,
+                    Response.Status.OK,
                     "application/json",
-                    response["message"].let { "{\"message\":\"$it\"}" }
+                    "{\"message\":\"${response["message"]}\"}"
                 )
             }
-            // Add more API endpoints as needed
+            "/api/preferences/remove" -> {
+                if (method != Method.POST) {
+                    return newFixedLengthResponse(
+                        Response.Status.METHOD_NOT_ALLOWED,
+                        "application/json",
+                        "{\"error\":\"Method not allowed\"}"
+                    )
+                }
+                val postData = HashMap<String, String>()
+                session.parseBody(postData)
+                Log.d("DashInspectorServer", "Post data: $postData")
+                val removePrefRequest = try {
+                    mGson.fromJson(postData["postData"], RemovePrefRequest::class.java)
+                } catch (ex: Exception) {
+                    Log.e("DashInspectorServer", "Error parsing JSON")
+                    null
+                }
+                if (removePrefRequest == null ||
+                    removePrefRequest.name.isNullOrEmpty()
+                ) {
+                    return newFixedLengthResponse(
+                        Response.Status.BAD_REQUEST,
+                        "application/json",
+                        "{\"error\":\"Invalid request body\"}"
+                    )
+                }
+                Log.d("DashInspectorServer", "RemovePrefRequest: $removePrefRequest")
+                val response = mPrefsInspector.removePreference(
+                    prefName = removePrefRequest.name
+                )
+                if(response["status"] == "error") {
+                    return newFixedLengthResponse(
+                        Response.Status.BAD_REQUEST,
+                        "application/json",
+                        "{\"error\":\"${response["message"]}\"}"
+                    )
+                }
+                return newFixedLengthResponse(
+                    Response.Status.OK,
+                    "application/json",
+                    "{\"message\":\"${response["message"]}\"}"
+                )
+            }
         }
+
         return newFixedLengthResponse(
             Response.Status.NOT_IMPLEMENTED,
             "application/json",
@@ -173,5 +296,15 @@ class DashInspectorServer(
                 "Error: ${e.message}"
             )
         }
+    }
+
+    private fun handleDatabaseRequest(uri: String, method: Method, session: IHTTPSession): Response {
+        // Placeholder for Database request handling logic
+        return newFixedLengthResponse(
+            Response.Status.NOT_IMPLEMENTED,
+            "application/json",
+            "{\"error\":\"Database API not implemented yet\"}"
+        )
+
     }
 }

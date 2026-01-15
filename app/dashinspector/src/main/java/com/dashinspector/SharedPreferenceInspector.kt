@@ -28,55 +28,73 @@ class SharedPreferencesInspector(private val context: Context) {
         )
     }
 
-    fun updatePreference(prefName: String, key: String, value: Any, type: String) : Map<String, String> {
+    fun removeEntry(prefName: String, key: String) : Map<String, String> {
         try {
             val prefs = context.getSharedPreferences(prefName, Context.MODE_PRIVATE)
-            if(prefs == null) {
-                return mapOf(
-                    "status" to "error",
-                    "message" to "SharedPreferences '$prefName' not found"
-                )
-            }
-            if(!prefs.contains(key)){
-                return mapOf(
-                    "status" to "error",
-                    "message" to "Key '$key' not found in SharedPreferences '$prefName'"
-                )
-            }
-            prefs.edit().apply {
-                when (type) {
-                    "String" -> putString(key, value as String)
-                    "Int", "Integer" -> putInt(key, (value as Number).toInt())
-                    "Long" -> putLong(key, (value as Number).toLong())
-                    "Float" -> putFloat(key, (value as Number).toFloat())
-                    "Boolean" -> putBoolean(key, value as Boolean)
-                    "Set" -> putStringSet(key, (value as List<String>).toSet())
-                    else -> return mapOf(
-                        "status" to "error",
-                        "message" to "Unsupported type '$type'"
-                    )
+            prefs.apply {
+                edit().apply{
+                    remove(key)
+                    apply()
                 }
-                apply()
-                return mapOf(
+            }
+            return mapOf(
+                "status" to "success",
+                "message" to "Entry '$key' removed successfully from preference '$prefName'"
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return mapOf(
+                "status" to "error",
+                "message" to "Exception occurred: ${e.message}"
+            )
+        }
+    }
+
+    fun removePreference(prefName: String) : Map<String, String> {
+        try {
+            val result = context.deleteSharedPreferences(prefName)
+            return if(result){
+                mapOf(
                     "status" to "success",
-                    "message" to "Preference updated successfully"
+                    "message" to "Preference '$prefName' deleted successfully"
+                )
+            } else {
+                mapOf(
+                    "status" to "error",
+                    "message" to "Failed to delete preference '$prefName'"
                 )
             }
         } catch (e: Exception) {
             e.printStackTrace()
             return mapOf(
                 "status" to "error",
-                "message" to "Exception: ${e.message}"
+                "message" to "Exception occurred: ${e.message}"
             )
         }
     }
 
-    fun deletePreference(prefName: String, key: String) {
-        try {
-            val prefs = context.getSharedPreferences(prefName, Context.MODE_PRIVATE)
-            prefs.edit { remove(key) }
-        } catch (e: Exception) {
-            e.printStackTrace()
+    fun upsertPreference(prefName: String, key: String, value: Any?, type: String) : Map<String, String> {
+        val prefs = context.getSharedPreferences(prefName, Context.MODE_PRIVATE)
+        prefs.edit().apply {
+            when (type) {
+                "String" -> putString(key, value as String)
+                "Int", "Integer" -> putInt(key, (value as Number).toInt())
+                "Long" -> putLong(key, (value as Number).toLong())
+                "Float" -> putFloat(key, (value as Number).toFloat())
+                "Boolean" -> putBoolean(key, value as Boolean)
+                "StringSet" -> putStringSet(key, (value as List<String>).toSet())
+                else -> {
+                    return mapOf(
+                        "status" to "error",
+                        "message" to "Unsupported type '$type'"
+                    )
+                }
+            }
+            apply()
+            return mapOf(
+                "status" to "success",
+                "message" to "Preference upserted successfully"
+            )
         }
     }
 }

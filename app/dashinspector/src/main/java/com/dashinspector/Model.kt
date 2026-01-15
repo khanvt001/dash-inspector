@@ -16,9 +16,25 @@ data class ApiResponse<T>(
     val message: String? = null
 )
 
-data class UpdatePrefRequest(
-    val name: String,
-    val key: String,
-    val value: String,
-    val type: String
+enum class PrefAction {
+    ADD_ENTRY,
+    UPDATE_ENTRY,
+    ADD_PREF,
+    UNKNOWN
+}
+
+data class PrefRequest(
+    val name: String?,
+    val key: String?,
+    val value: String?,
+    val type: String?
+)
+
+data class RemoveEntryRequest(
+    val name: String?,
+    val key: String?
+)
+
+data class RemovePrefRequest(
+    val name: String?
 )

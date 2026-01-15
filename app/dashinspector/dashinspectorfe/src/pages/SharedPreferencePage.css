@@ -6,6 +6,13 @@
   margin-bottom: 16px;
 }
 
+.page-header-content {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .page-header h2 {
   margin: 0 0 4px 0;
   font-size: 24px;
@@ -17,6 +24,31 @@
   margin: 0;
   color: #666;
   font-size: 14px;
+}
+
+.btn-add-pref {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background-color: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.2s;
+}
+
+.btn-add-pref:hover {
+  background-color: #1565c0;
+}
+
+.btn-add-pref svg {
+  width: 18px;
+  height: 18px;
 }
 
 /* Loading State */
@@ -165,6 +197,42 @@
   flex-shrink: 0;
 }
 
+/* Icon Buttons */
+.btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-left: 4px;
+  border-radius: 50%;
+  color: #757575;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+  flex-shrink: 0;
+}
+
+.btn-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.btn-add-entry:hover {
+  background-color: rgba(25, 118, 210, 0.12);
+  color: #1976d2;
+}
+
+.btn-remove-pref:hover,
+.btn-remove-entry:hover {
+  background-color: rgba(244, 67, 54, 0.12);
+  color: #f44336;
+}
+
+.btn-edit-entry:hover {
+  background-color: rgba(25, 118, 210, 0.12);
+  color: #1976d2;
+}
+
 /* Entries List */
 .entries-list {
   border-top: 1px solid #e0e0e0;
@@ -178,12 +246,38 @@
 }
 
 .entry-item {
+  display: flex;
+  align-items: center;
   padding: 12px 16px 12px 44px;
   border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.entry-item:hover {
+  background-color: rgba(0, 0, 0, 0.02);
 }
 
 .entry-item:last-child {
   border-bottom: none;
+}
+
+.entry-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.entry-actions {
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.entry-item:hover .entry-actions {
+  opacity: 1;
 }
 
 .entry-key {
@@ -262,5 +356,21 @@
 
   .entry-value {
     color: #b0b0b0;
+  }
+
+  .entry-item:hover {
+    background-color: rgba(255, 255, 255, 0.04);
+  }
+
+  .btn-add-entry:hover,
+  .btn-edit-entry:hover {
+    background-color: rgba(100, 181, 246, 0.16);
+    color: #64b5f6;
+  }
+
+  .btn-remove-pref:hover,
+  .btn-remove-entry:hover {
+    background-color: rgba(239, 83, 80, 0.16);
+    color: #ef5350;
   }
 }
