@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { preferencesApi } from '../services/api';
 import type { PreferenceEntry, PreferenceFile } from '../types/preferences';
-import Modal from '../components/Modal';
+import Modal from '../components/Modal/Modal';
+import { Button } from '../components/Button/Button';
+import { Input } from '../components/Input/Input';
+import { Card } from '../components/Card/Card';
 import './SharedPreferencePage.css';
 
 type ModalType = 'createPref' | 'addEntry' | 'editEntry' | null;
@@ -72,15 +75,15 @@ export default function SharedPreferencePage() {
 
   const getTypeColor = (type: string): string => {
     switch (type.toLowerCase()) {
-      case 'string': return '#4caf50';
+      case 'string': return 'var(--color-string)';
       case 'int':
-      case 'integer': return '#2196f3';
-      case 'long': return '#03a9f4';
-      case 'float': return '#ff9800';
-      case 'boolean': return '#9c27b0';
+      case 'integer': return 'var(--color-int)';
+      case 'long': return 'var(--color-long)';
+      case 'float': return 'var(--color-float)';
+      case 'boolean': return 'var(--color-boolean)';
       case 'set':
-      case 'stringset': return '#e91e63';
-      default: return '#757575';
+      case 'stringset': return 'var(--color-set)';
+      default: return 'var(--text-tertiary)';
     }
   };
 
@@ -215,7 +218,7 @@ export default function SharedPreferencePage() {
       case 'createPref': return handleCreatePreference;
       case 'addEntry': return handleAddEntry;
       case 'editEntry': return handleUpdateEntry;
-      default: return () => {};
+      default: return () => { };
     }
   };
 
@@ -223,7 +226,10 @@ export default function SharedPreferencePage() {
     return (
       <div className="shared-preference-page">
         <div className="page-header">
-          <h2>SharedPreference</h2>
+          <div>
+            <h2 className="page-title">SharedPreference</h2>
+            <p className="page-subtitle">Manage your application's shared preferences</p>
+          </div>
         </div>
         <div className="loading-state">
           <div className="spinner"></div>
@@ -237,16 +243,19 @@ export default function SharedPreferencePage() {
     return (
       <div className="shared-preference-page">
         <div className="page-header">
-          <h2>SharedPreference</h2>
+          <h2 className="page-title">SharedPreference</h2>
         </div>
         <div className="error-state">
-          <svg className="error-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
+          <div className="error-icon-bg">
+            <svg className="error-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
+          <h3>Failed to load data</h3>
           <p>{error}</p>
-          <button onClick={loadPreferences}>Retry</button>
+          <Button onClick={loadPreferences} variant="primary">Retry</Button>
         </div>
       </div>
     );
@@ -255,154 +264,168 @@ export default function SharedPreferencePage() {
   return (
     <div className="shared-preference-page">
       <div className="page-header">
-        <div className="page-header-content">
-          <div>
-            <h2>SharedPreference</h2>
-            <p className="page-description">{preferences.length} preference file(s)</p>
-          </div>
-          <button className="btn-add-pref" onClick={openCreatePrefModal}>
+        <div>
+          <h2 className="page-title">SharedPreference</h2>
+          <p className="page-subtitle">{preferences.length} preference file{preferences.length !== 1 ? 's' : ''} found</p>
+        </div>
+        <Button
+          variant="primary"
+          onClick={openCreatePrefModal}
+          leftIcon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            Add Pref
-          </button>
-        </div>
+          }
+        >
+          New File
+        </Button>
       </div>
 
-      {preferences.length === 0 ? (
-        <div className="empty-state">
-          <svg className="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M12 2L2 7l10 5 10-5-10-5z" />
-            <path d="M2 17l10 5 10-5" />
-            <path d="M2 12l10 5 10-5" />
-          </svg>
-          <p>No SharedPreference files found</p>
-        </div>
-      ) : (
-        <div className="preferences-list">
-          {preferences.map((file) => (
-            <div key={file.name} className="preference-file">
-              <button
-                className={`file-header ${expandedFiles.has(file.name) ? 'expanded' : ''}`}
-                onClick={() => toggleFile(file.name)}
-              >
-                <svg className="expand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
-                <span className="file-name">{file.name}</span>
-                <span className="entry-count">{file.entries.length} entries</span>
-                <span
-                  className="btn-icon btn-add-entry"
-                  onClick={(e) => openAddEntryModal(file.name, e)}
-                  title="Add entry"
+      <div className="preferences-container">
+        {preferences.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-icon-bg">
+              <svg className="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                <path d="M2 17l10 5 10-5" />
+                <path d="M2 12l10 5 10-5" />
+              </svg>
+            </div>
+            <h3>No Preferences Found</h3>
+            <p>Create a new preference file to get started.</p>
+            <Button onClick={openCreatePrefModal} variant="secondary" className="mt-4">
+              Create Preference
+            </Button>
+          </div>
+        ) : (
+          <div className="preferences-list">
+            {preferences.map((file) => (
+              <Card key={file.name} noPadding className="preference-card">
+                <div
+                  className={`file-header ${expandedFiles.has(file.name) ? 'expanded' : ''}`}
+                  onClick={() => toggleFile(file.name)}
                 >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                </span>
-                <span
-                  className="btn-icon btn-remove-pref"
-                  onClick={(e) => handleRemovePreference(file.name, e)}
-                  title="Delete preference file"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polyline points="3 6 5 6 21 6" />
-                    <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-                    <line x1="10" y1="11" x2="10" y2="17" />
-                    <line x1="14" y1="11" x2="14" y2="17" />
-                  </svg>
-                </span>
-              </button>
+                  <div className="file-info">
+                    <div className="expand-icon-wrapper">
+                      <svg className="expand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="9 18 15 12 9 6" />
+                      </svg>
+                    </div>
+                    <span className="file-name">{file.name}</span>
+                    <span className="badge">{file.entries.length} entries</span>
+                  </div>
 
-              {expandedFiles.has(file.name) && (
-                <div className="entries-list">
-                  {file.entries.length === 0 ? (
-                    <div className="no-entries">No entries</div>
-                  ) : (
-                    file.entries.map((entry) => (
-                      <div
-                        key={entry.key}
-                        className="entry-item"
-                        onClick={(e) => openEditEntryModal(file.name, entry, e)}
-                      >
-                        <div className="entry-content">
-                          <div className="entry-key">{entry.key}</div>
-                          <div className="entry-meta">
-                            <span
-                              className="entry-type"
-                              style={{ backgroundColor: getTypeColor(entry.type) }}
+                  <div className="file-actions">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => openAddEntryModal(file.name, e)}
+                      title="Add entry"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                      </svg>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-danger"
+                      onClick={(e) => handleRemovePreference(file.name, e)}
+                      title="Delete preference file"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                      </svg>
+                    </Button>
+                  </div>
+                </div>
+
+                {expandedFiles.has(file.name) && (
+                  <div className="entries-list">
+                    {file.entries.length === 0 ? (
+                      <div className="no-entries">No entries in this file</div>
+                    ) : (
+                      file.entries.map((entry) => (
+                        <div
+                          key={entry.key}
+                          className="entry-item"
+                          onClick={(e) => openEditEntryModal(file.name, entry, e)}
+                        >
+                          <div className="entry-content">
+                            <div className="entry-main-row">
+                              <span className="entry-key" title={entry.key}>{entry.key}</span>
+                              <div className="entry-type-wrapper">
+                                <span
+                                  className="entry-type-badge"
+                                  style={{
+                                    color: getTypeColor(entry.type),
+                                    borderColor: getTypeColor(entry.type),
+                                    backgroundColor: `color-mix(in srgb, ${getTypeColor(entry.type)}, transparent 90%)`
+                                  }}
+                                >
+                                  {entry.type}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="entry-value-row">
+                              <span className="entry-value">{entry.value}</span>
+                            </div>
+                          </div>
+                          <div className="entry-actions">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-danger"
+                              onClick={(e) => handleRemoveEntry(file.name, entry.key, e)}
+                              title="Delete entry"
                             >
-                              {entry.type}
-                            </span>
-                            <span className="entry-value">{entry.value}</span>
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                                <polyline points="3 6 5 6 21 6" />
+                                <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                              </svg>
+                            </Button>
                           </div>
                         </div>
-                        <div className="entry-actions">
-                          <span
-                            className="btn-icon btn-edit-entry"
-                            title="Edit entry"
-                          >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                            </svg>
-                          </span>
-                          <span
-                            className="btn-icon btn-remove-entry"
-                            onClick={(e) => handleRemoveEntry(file.name, entry.key, e)}
-                            title="Delete entry"
-                          >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <polyline points="3 6 5 6 21 6" />
-                              <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-                            </svg>
-                          </span>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+                      ))
+                    )}
+                  </div>
+                )}
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
 
-      {/* Modal for Create/Add/Edit */}
       <Modal isOpen={modalType !== null} onClose={closeModal} title={getModalTitle()}>
-        <form onSubmit={getSubmitHandler()}>
-          <div className="form-group">
-            <label htmlFor="prefName">Preference Name</label>
-            <input
-              id="prefName"
-              type="text"
-              value={formName}
-              onChange={(e) => setFormName(e.target.value)}
-              placeholder="e.g., user_settings"
-              required
-              disabled={modalType !== 'createPref'}
-            />
-          </div>
+        <form onSubmit={getSubmitHandler()} className="modal-form">
+          <Input
+            label="Preference Name"
+            value={formName}
+            onChange={(e) => setFormName(e.target.value)}
+            placeholder="e.g., user_settings"
+            required
+            disabled={modalType !== 'createPref'}
+            fullWidth
+          />
+
+          <Input
+            label="Key"
+            value={formKey}
+            onChange={(e) => setFormKey(e.target.value)}
+            placeholder="e.g., theme_mode"
+            required
+            disabled={modalType === 'editEntry'}
+            fullWidth
+          />
 
           <div className="form-group">
-            <label htmlFor="entryKey">Key</label>
-            <input
-              id="entryKey"
-              type="text"
-              value={formKey}
-              onChange={(e) => setFormKey(e.target.value)}
-              placeholder="e.g., theme_mode"
-              required
-              disabled={modalType === 'editEntry'}
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="entryType">Type</label>
+            <label htmlFor="entryType" className="input-label">Type</label>
             <select
               id="entryType"
+              className="select-input"
               value={formType}
               onChange={(e) => setFormType(e.target.value)}
               disabled={modalType === 'editEntry'}
@@ -413,25 +436,22 @@ export default function SharedPreferencePage() {
             </select>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="entryValue">Value</label>
-            <input
-              id="entryValue"
-              type="text"
-              value={formValue}
-              onChange={(e) => setFormValue(e.target.value)}
-              placeholder="e.g., dark"
-              required
-            />
-          </div>
+          <Input
+            label="Value"
+            value={formValue}
+            onChange={(e) => setFormValue(e.target.value)}
+            placeholder="e.g., dark"
+            required
+            fullWidth
+          />
 
-          <div className="form-actions">
-            <button type="button" className="btn btn-secondary" onClick={closeModal}>
+          <div className="modal-actions">
+            <Button type="button" variant="ghost" onClick={closeModal}>
               Cancel
-            </button>
-            <button type="submit" className="btn btn-primary" disabled={submitting}>
-              {submitting ? 'Saving...' : 'Save'}
-            </button>
+            </Button>
+            <Button type="submit" variant="primary" isLoading={submitting}>
+              Save
+            </Button>
           </div>
         </form>
       </Modal>

@@ -1,0 +1,122 @@
+.btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    border-radius: var(--radius-md);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+    outline: none;
+}
+
+.btn:focus-visible {
+    box-shadow: 0 0 0 2px var(--bg-color), 0 0 0 4px var(--primary-color);
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Variants */
+.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background-color: var(--primary-hover);
+}
+
+.btn-primary:active:not(:disabled) {
+    background-color: var(--primary-active);
+}
+
+.btn-secondary {
+    background-color: var(--surface-color);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background-color: var(--surface-hover);
+    border-color: var(--border-color-hover);
+}
+
+.btn-danger {
+    background-color: var(--error-color);
+    color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+    filter: brightness(0.9);
+}
+
+.btn-ghost {
+    background-color: transparent;
+    color: var(--text-secondary);
+}
+
+.btn-ghost:hover:not(:disabled) {
+    background-color: var(--surface-hover);
+    color: var(--text-primary);
+}
+
+/* Sizes */
+.btn-sm {
+    height: 2rem;
+    padding: 0 var(--spacing-3);
+    font-size: var(--text-xs);
+}
+
+.btn-md {
+    height: 2.5rem;
+    padding: 0 var(--spacing-4);
+    font-size: var(--text-sm);
+}
+
+.btn-lg {
+    height: 3rem;
+    padding: 0 var(--spacing-6);
+    font-size: var(--text-base);
+}
+
+/* Icons */
+.btn-icon-left {
+    margin-right: var(--spacing-2);
+    display: flex;
+    align-items: center;
+}
+
+.btn-icon-right {
+    margin-left: var(--spacing-2);
+    display: flex;
+    align-items: center;
+}
+
+.btn-icon-left svg,
+.btn-icon-right svg {
+    width: 1.25em;
+    height: 1.25em;
+}
+
+/* Loading Spinner */
+.btn-spinner {
+    width: 1.25em;
+    height: 1.25em;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: btn-spin 0.75s linear infinite;
+}
+
+@keyframes btn-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
