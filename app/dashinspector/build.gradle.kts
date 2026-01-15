@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.dashinspector"
+    namespace = "com.github.khanvt001.dashinspector"
     compileSdk = 36
 
     defaultConfig {
