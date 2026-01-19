@@ -10,6 +10,14 @@ A lightweight runtime debugging library for Android that provides a web-based in
 - **Lightweight**: Minimal impact on app performance
 - **Type Support**: Full support for all SharedPreferences data types (String, Int, Long, Float, Boolean, StringSet)
 
+## Screenshots
+
+![Screenshot 1](screenshots/img.png)
+
+![Screenshot 2](screenshots/img_1.png)
+
+![Screenshot 3](screenshots/img_2.png)
+
 ## Installation
 
 ### Gradle (Groovy)
