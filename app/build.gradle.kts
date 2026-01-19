@@ -57,5 +57,5 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
-    implementation(project(":app:dashinspector"))
+    debugImplementation("com.github.khanvt001:dash-inspector:0.1.0")
 }

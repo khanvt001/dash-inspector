@@ -24,7 +24,7 @@ A lightweight runtime debugging library for Android that provides a web-based in
 
 ```groovy
 dependencies {
-    debugImplementation 'com.github.khanvt001:dashinspector:1.0.0'
+    debugImplementation 'com.github.khanvt001:dash-inspector:0.1.0'
 }
 ```
 
@@ -32,16 +32,27 @@ dependencies {
 
 ```kotlin
 dependencies {
-    debugImplementation("com.github.khanvt001:dashinspector:1.0.0")
+    debugImplementation("com.github.khanvt001:dash-inspector:0.1.0")
 }
 ```
 
 ### JitPack
 
-Add JitPack repository to your root `build.gradle` or `settings.gradle`:
+Add JitPack repository to your `settings.gradle.kts` or `settings.gradle`:
+
+**Kotlin DSL (`settings.gradle.kts`)**
+
+```kotlin
+dependencyResolutionManagement {
+    repositories {
+        maven { url = uri("https://jitpack.io") }
+    }
+}
+```
+
+**Groovy (`settings.gradle`)**
 
 ```groovy
-// settings.gradle
 dependencyResolutionManagement {
     repositories {
         maven { url 'https://jitpack.io' }
@@ -51,9 +62,19 @@ dependencyResolutionManagement {
 
 Then add the dependency:
 
+**Kotlin DSL**
+
+```kotlin
+dependencies {
+    debugImplementation("com.github.khanvt001:dash-inspector:0.1.0")
+}
+```
+
+**Groovy**
+
 ```groovy
 dependencies {
-    debugImplementation 'com.github.khanvt001:dashinspector:1.0.0'
+    debugImplementation 'com.github.khanvt001:dash-inspector:0.1.0'
 }
 ```
 
@@ -207,13 +228,6 @@ Specify the device when setting up port forwarding:
 ```bash
 adb -s <device-serial> forward tcp:8080 tcp:8080
 ```
-
-## Roadmap
-
-- [ ] Database Inspector (SQLite, Room)
-- [ ] Network request inspection
-- [ ] File system browser
-- [ ] Export/Import preferences
 
 ## License
 
