@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.maven.publish)
 }
 
 android {
@@ -44,4 +45,17 @@ dependencies {
     implementation(libs.nanohttpd)
     implementation(libs.gson)
     implementation(libs.kotlinx.coroutines.android)
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            create<MavenPublication>("release") {
+                from(components["release"])
+                groupId = "com.github.khanvt001"
+                artifactId = "dash-inspector"
+                version = "0.1.0"
+            }
+        }
+    }
 }
