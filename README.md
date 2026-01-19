@@ -1,5 +1,7 @@
 # DashInspector
 
+[![](https://jitpack.io/v/khanvt001/dash-inspector.svg)](https://jitpack.io/#khanvt001/dash-inspector)
+
 A lightweight runtime debugging library for Android that provides a web-based interface to inspect and modify SharedPreferences and databases during development.
 
 ## Features
