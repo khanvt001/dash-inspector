@@ -7,256 +7,183 @@ import fi.iki.elonen.NanoHTTPD
 import java.io.ByteArrayInputStream
 import java.io.FileNotFoundException
 
-class DashInspectorServer(
+/**
+ * HTTP server for DashInspector that handles API requests and serves the web frontend.
+ */
+internal class DashInspectorServer(
     private val context: Context,
-    private val mGson: Gson,
-    private val mPrefsInspector: SharedPreferencesInspector,
+    private val gson: Gson,
+    private val prefsInspector: SharedPreferencesInspector,
     port: Int,
 ) : NanoHTTPD(port) {
 
     private val assetManager = context.assets
 
-    private val mimeTypes = mapOf(
-        "html" to "text/html",
-        "css" to "text/css",
-        "js" to "application/javascript",
-        "json" to "application/json",
-        "png" to "image/png",
-        "svg" to "image/svg+xml",
-        "ico" to "image/x-icon",
-        "woff" to "font/woff",
-        "woff2" to "font/woff2"
-    )
+    companion object {
+        private const val TAG = "DashInspectorServer"
+        private const val CONTENT_TYPE_JSON = "application/json"
 
-    private fun getMimeType(path: String): String {
-        val extension = path.substringAfterLast('.', "")
-        return mimeTypes[extension] ?: "application/octet-stream"
+        private const val PREFS_PATH = "/api/preferences"
+
+        private val MIME_TYPES = mapOf(
+            "html" to "text/html",
+            "css" to "text/css",
+            "js" to "application/javascript",
+            "json" to CONTENT_TYPE_JSON,
+            "png" to "image/png",
+            "svg" to "image/svg+xml",
+            "ico" to "image/x-icon",
+            "woff" to "font/woff",
+            "woff2" to "font/woff2"
+        )
     }
 
     override fun serve(session: IHTTPSession?): Response {
-        return session?.let {
-            val msg = "<html><body><h1>Dash Inspector HTTP Server</h1>\n" +
-                    "<p>This is a simple HTTP server running inside the Dash Inspector app.</p>" +
-                    "</body></html>\n"
-
-            val uri = session.uri
-            val method = session.method
-
-            when {
-                // API endpoints
-                uri.startsWith("/api/preferences") -> handlePrefsRequest(uri, method, session)
-                uri.startsWith("/api/database") -> handleDatabaseRequest(uri, method, session)
-                // Static files (Web Frontend)
-                else -> serveStaticFile(uri)
-            }
-        } ?: newFixedLengthResponse(
-            Response.Status.BAD_REQUEST,
-            "text/plain",
-            "Bad Request"
-        )
-    }
-
-    private fun handlePrefsRequest(uri: String, method: Method, session: IHTTPSession): Response {
-        // Placeholder for API request handling logic
-        when (uri) {
-            "/api/preferences" -> {
-                val prefs = mPrefsInspector.getAllPreferences()
-                val response = mGson.toJson(prefs)
-                return newFixedLengthResponse(
-                    Response.Status.OK,
-                    "application/json",
-                    response
-                )
-            }
-
-            "/api/preferences/entry/add",
-            "/api/preferences/entry/update",
-            "/api/preferences/create" -> {
-                if (method != Method.POST) {
-                    return newFixedLengthResponse(
-                        Response.Status.METHOD_NOT_ALLOWED,
-                        "application/json",
-                        "{\"error\":\"Method not allowed\"}"
-                    )
-                }
-                val postData = HashMap<String, String>()
-                session.parseBody(postData)
-                Log.d("DashInspectorServer", "Post data: $postData")
-
-                val prefRequest = try {
-                    mGson.fromJson(postData["postData"], PrefRequest::class.java)
-                } catch (ex: Exception) {
-                    Log.e("DashInspectorServer", "Error parsing JSON")
-                    null
-                }
-
-                if (prefRequest == null) {
-                    return newFixedLengthResponse(
-                        Response.Status.BAD_REQUEST,
-                        "application/json",
-                        "{\"error\":\"Invalid request body\"}"
-                    )
-                }
-
-                Log.d("DashInspectorServer", "AddPrefRequest: $prefRequest")
-                if (prefRequest.name.isNullOrEmpty() ||
-                    prefRequest.type.isNullOrEmpty() ||
-                    prefRequest.key.isNullOrEmpty()
-                    ) {
-                    return newFixedLengthResponse(
-                        Response.Status.BAD_REQUEST,
-                        "application/json",
-                        "{\"error\":\"Invalid request body\"}"
-                    )
-                }
-
-                if(prefRequest.type != "String" && prefRequest.type != "Set") {
-                    if(prefRequest.value.isNullOrEmpty()) {
-                        return newFixedLengthResponse(
-                            Response.Status.BAD_REQUEST,
-                            "application/json",
-                            "{\"error\":\"Invalid request body\"}"
-                        )
-                    }
-                }
-
-                val response = mPrefsInspector.upsertPreference(
-                    prefName = prefRequest.name,
-                    key = prefRequest.key,
-                    value = prefRequest.value,
-                    type = prefRequest.type
-                )
-
-                if(response["status"] == "error") {
-                    return newFixedLengthResponse(
-                        Response.Status.BAD_REQUEST,
-                        "application/json",
-                        "{\"error\":\"${response["message"]}\"}"
-                    )
-                }
-
-                val prefAction = when(uri) {
-                    "/api/preferences/entry/add" -> PrefAction.ADD_ENTRY
-                    "/api/preferences/entry/update" -> PrefAction.UPDATE_ENTRY
-                    "/api/preferences/create" -> PrefAction.ADD_PREF
-                    else -> PrefAction.UNKNOWN
-                }
-
-                val message = when(prefAction) {
-                    PrefAction.ADD_ENTRY -> "Entry added successfully"
-                    PrefAction.UPDATE_ENTRY -> "Entry updated successfully"
-                    PrefAction.ADD_PREF -> "SharedPreferences '${prefRequest.name}' created successfully"
-                    else -> "Operation successful"
-                }
-
-                return newFixedLengthResponse(
-                    Response.Status.OK,
-                    "application/json",
-                    "{\"message\":\"$message\"}"
-                )
-            }
-            "/api/preferences/entry/remove" -> {
-                if (method != Method.POST) {
-                    return newFixedLengthResponse(
-                        Response.Status.METHOD_NOT_ALLOWED,
-                        "application/json",
-                        "{\"error\":\"Method not allowed\"}"
-                    )
-                }
-                val postData = HashMap<String, String>()
-                session.parseBody(postData)
-                Log.d("DashInspectorServer", "Post data: $postData")
-
-                val removeEntryRequest = try {
-                    mGson.fromJson(postData["postData"], RemoveEntryRequest::class.java)
-                } catch (ex: Exception) {
-                    Log.e("DashInspectorServer", "Error parsing JSON")
-                    null
-                }
-
-                if (removeEntryRequest == null ||
-                    removeEntryRequest.name.isNullOrEmpty() ||
-                    removeEntryRequest.key.isNullOrEmpty()
-                ) {
-                    return newFixedLengthResponse(
-                        Response.Status.BAD_REQUEST,
-                        "application/json",
-                        "{\"error\":\"Invalid request body\"}"
-                    )
-                }
-
-                Log.d("DashInspectorServer", "RemoveEntryRequest: $removeEntryRequest")
-
-                val response = mPrefsInspector.removeEntry(
-                    prefName = removeEntryRequest.name,
-                    key = removeEntryRequest.key
-                )
-
-                if(response["status"] == "error") {
-                    return newFixedLengthResponse(
-                        Response.Status.BAD_REQUEST,
-                        "application/json",
-                        "{\"error\":\"${response["message"]}\"}"
-                    )
-                }
-
-                return newFixedLengthResponse(
-                    Response.Status.OK,
-                    "application/json",
-                    "{\"message\":\"${response["message"]}\"}"
-                )
-            }
-            "/api/preferences/remove" -> {
-                if (method != Method.POST) {
-                    return newFixedLengthResponse(
-                        Response.Status.METHOD_NOT_ALLOWED,
-                        "application/json",
-                        "{\"error\":\"Method not allowed\"}"
-                    )
-                }
-                val postData = HashMap<String, String>()
-                session.parseBody(postData)
-                Log.d("DashInspectorServer", "Post data: $postData")
-                val removePrefRequest = try {
-                    mGson.fromJson(postData["postData"], RemovePrefRequest::class.java)
-                } catch (ex: Exception) {
-                    Log.e("DashInspectorServer", "Error parsing JSON")
-                    null
-                }
-                if (removePrefRequest == null ||
-                    removePrefRequest.name.isNullOrEmpty()
-                ) {
-                    return newFixedLengthResponse(
-                        Response.Status.BAD_REQUEST,
-                        "application/json",
-                        "{\"error\":\"Invalid request body\"}"
-                    )
-                }
-                Log.d("DashInspectorServer", "RemovePrefRequest: $removePrefRequest")
-                val response = mPrefsInspector.removePreference(
-                    prefName = removePrefRequest.name
-                )
-                if(response["status"] == "error") {
-                    return newFixedLengthResponse(
-                        Response.Status.BAD_REQUEST,
-                        "application/json",
-                        "{\"error\":\"${response["message"]}\"}"
-                    )
-                }
-                return newFixedLengthResponse(
-                    Response.Status.OK,
-                    "application/json",
-                    "{\"message\":\"${response["message"]}\"}"
-                )
-            }
+        if (session == null) {
+            return badRequest("Invalid request")
         }
 
-        return newFixedLengthResponse(
-            Response.Status.NOT_IMPLEMENTED,
-            "application/json",
-            "{\"error\":\"API not implemented yet\"}"
-        )
+        val uri = session.uri
+        val method = session.method
+
+        return when {
+            uri.startsWith("/api/preferences") -> handlePreferencesApi(uri, method, session)
+            uri.startsWith("/api/database") -> handleDatabaseApi(uri, method, session)
+            else -> serveStaticFile(uri)
+        }
     }
+
+    // region Preferences API
+
+    private fun handlePreferencesApi(uri: String, method: Method, session: IHTTPSession): Response {
+        return when (uri) {
+            PREFS_PATH -> getPreferences()
+            "$PREFS_PATH/create" -> handleCreatePreference(method, session)
+            "$PREFS_PATH/remove" -> handleRemovePreference(method, session)
+            "$PREFS_PATH/entry/add" -> handleAddEntry(method, session)
+            "$PREFS_PATH/entry/update" -> handleUpdateEntry(method, session)
+            "$PREFS_PATH/entry/remove" -> handleRemoveEntry(method, session)
+            else -> notImplemented("API endpoint not found")
+        }
+    }
+
+    private fun getPreferences(): Response {
+        val prefs = prefsInspector.getAllPreferences()
+        return jsonResponse(prefs)
+    }
+
+    private fun handleCreatePreference(method: Method, session: IHTTPSession): Response {
+        return requirePost(method) {
+            val request = parseBody<PrefRequest>(session) ?: return@requirePost badRequest("Invalid request body")
+
+            if (!request.isValidForCreate()) {
+                return@requirePost badRequest("Missing required fields: name, key, type")
+            }
+
+            if (!request.isValueValidForType()) {
+                return@requirePost badRequest("Value is required for type ${request.type}")
+            }
+
+            val result = prefsInspector.upsertPreference(
+                prefName = request.name!!,
+                key = request.key!!,
+                value = request.value,
+                type = request.type!!
+            )
+
+            handleInspectorResult(result, "SharedPreference '${request.name}' created successfully")
+        }
+    }
+
+    private fun handleAddEntry(method: Method, session: IHTTPSession): Response {
+        return requirePost(method) {
+            val request = parseBody<PrefRequest>(session) ?: return@requirePost badRequest("Invalid request body")
+
+            if (!request.isValidForCreate()) {
+                return@requirePost badRequest("Missing required fields: name, key, type")
+            }
+
+            if (!request.isValueValidForType()) {
+                return@requirePost badRequest("Value is required for type ${request.type}")
+            }
+
+            val result = prefsInspector.upsertPreference(
+                prefName = request.name!!,
+                key = request.key!!,
+                value = request.value,
+                type = request.type!!
+            )
+
+            handleInspectorResult(result, "Entry added successfully")
+        }
+    }
+
+    private fun handleUpdateEntry(method: Method, session: IHTTPSession): Response {
+        return requirePost(method) {
+            val request = parseBody<PrefRequest>(session) ?: return@requirePost badRequest("Invalid request body")
+
+            if (!request.isValidForCreate()) {
+                return@requirePost badRequest("Missing required fields: name, key, type")
+            }
+
+            if (!request.isValueValidForType()) {
+                return@requirePost badRequest("Value is required for type ${request.type}")
+            }
+
+            val result = prefsInspector.upsertPreference(
+                prefName = request.name!!,
+                key = request.key!!,
+                value = request.value,
+                type = request.type!!
+            )
+
+            handleInspectorResult(result, "Entry updated successfully")
+        }
+    }
+
+    private fun handleRemoveEntry(method: Method, session: IHTTPSession): Response {
+        return requirePost(method) {
+            val request = parseBody<RemoveEntryRequest>(session)
+                ?: return@requirePost badRequest("Invalid request body")
+
+            if (request.name.isNullOrEmpty() || request.key.isNullOrEmpty()) {
+                return@requirePost badRequest("Missing required fields: name, key")
+            }
+
+            val result = prefsInspector.removeEntry(
+                prefName = request.name,
+                key = request.key
+            )
+
+            handleInspectorResult(result)
+        }
+    }
+
+    private fun handleRemovePreference(method: Method, session: IHTTPSession): Response {
+        return requirePost(method) {
+            val request = parseBody<RemovePrefRequest>(session)
+                ?: return@requirePost badRequest("Invalid request body")
+
+            if (request.name.isNullOrEmpty()) {
+                return@requirePost badRequest("Missing required field: name")
+            }
+
+            val result = prefsInspector.removePreference(prefName = request.name)
+            handleInspectorResult(result)
+        }
+    }
+
+    // endregion
+
+    // region Database API
+
+    private fun handleDatabaseApi(uri: String, method: Method, session: IHTTPSession): Response {
+        return notImplemented("Database API not implemented yet")
+    }
+
+    // endregion
+
+    // region Static File Serving
 
     private fun serveStaticFile(uri: String): Response {
         val path = when {
@@ -265,46 +192,127 @@ class DashInspectorServer(
             else -> uri
         }
 
-        val assetPath = path
-
         return try {
-            val inputStream = assetManager.open(assetPath)
-            val mimeType = getMimeType(path)
-
+            val inputStream = assetManager.open(path)
             val bytes = inputStream.readBytes()
             inputStream.close()
 
             newFixedLengthResponse(
                 Response.Status.OK,
-                mimeType,
+                getMimeType(path),
                 ByteArrayInputStream(bytes),
                 bytes.size.toLong()
             )
         } catch (e: FileNotFoundException) {
+            // SPA fallback: serve index.html for routes without file extensions
             if (!path.contains(".")) {
                 return serveStaticFile("/index.html")
             }
-            newFixedLengthResponse(
-                Response.Status.NOT_FOUND,
-                "text/plain",
-                "File not found: $path"
-            )
+            notFound("File not found: $path")
         } catch (e: Exception) {
-            newFixedLengthResponse(
-                Response.Status.INTERNAL_ERROR,
-                "text/plain",
-                "Error: ${e.message}"
-            )
+            internalError("Error serving file: ${e.message}")
         }
     }
 
-    private fun handleDatabaseRequest(uri: String, method: Method, session: IHTTPSession): Response {
-        // Placeholder for Database request handling logic
+    private fun getMimeType(path: String): String {
+        val extension = path.substringAfterLast('.', "")
+        return MIME_TYPES[extension] ?: "application/octet-stream"
+    }
+
+    // endregion
+
+    // region Helper Functions
+
+    private inline fun requirePost(method: Method, block: () -> Response): Response {
+        return if (method == Method.POST) {
+            block()
+        } else {
+            methodNotAllowed()
+        }
+    }
+
+    private inline fun <reified T> parseBody(session: IHTTPSession): T? {
+        return try {
+            val postData = HashMap<String, String>()
+            session.parseBody(postData)
+            Log.d(TAG, "Request body: $postData")
+            gson.fromJson(postData["postData"], T::class.java)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error parsing request body: ${e.message}")
+            null
+        }
+    }
+
+    private fun handleInspectorResult(
+        result: Map<String, String>,
+        successMessage: String? = null
+    ): Response {
+        return if (result["status"] == "error") {
+            badRequest(result["message"] ?: "Unknown error")
+        } else {
+            successResponse(successMessage ?: result["message"] ?: "Success")
+        }
+    }
+
+    // endregion
+
+    // region Response Builders
+
+    private fun jsonResponse(data: Any): Response {
+        return newFixedLengthResponse(
+            Response.Status.OK,
+            CONTENT_TYPE_JSON,
+            gson.toJson(data)
+        )
+    }
+
+    private fun successResponse(message: String): Response {
+        return newFixedLengthResponse(
+            Response.Status.OK,
+            CONTENT_TYPE_JSON,
+            """{"message":"$message"}"""
+        )
+    }
+
+    private fun badRequest(message: String): Response {
+        return newFixedLengthResponse(
+            Response.Status.BAD_REQUEST,
+            CONTENT_TYPE_JSON,
+            """{"error":"$message"}"""
+        )
+    }
+
+    private fun notFound(message: String): Response {
+        return newFixedLengthResponse(
+            Response.Status.NOT_FOUND,
+            "text/plain",
+            message
+        )
+    }
+
+    private fun methodNotAllowed(): Response {
+        return newFixedLengthResponse(
+            Response.Status.METHOD_NOT_ALLOWED,
+            CONTENT_TYPE_JSON,
+            """{"error":"Method not allowed"}"""
+        )
+    }
+
+    private fun notImplemented(message: String): Response {
         return newFixedLengthResponse(
             Response.Status.NOT_IMPLEMENTED,
-            "application/json",
-            "{\"error\":\"Database API not implemented yet\"}"
+            CONTENT_TYPE_JSON,
+            """{"error":"$message"}"""
         )
-
     }
+
+    private fun internalError(message: String): Response {
+        return newFixedLengthResponse(
+            Response.Status.INTERNAL_ERROR,
+            "text/plain",
+            message
+        )
+    }
+
+    // endregion
 }

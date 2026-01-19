@@ -6,7 +6,7 @@ class TestApplication : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        val dashInspector = DashInspector()
-        dashInspector.initialize(this)
+        // Initialize DashInspector for runtime debugging
+        DashInspector.init(this)
     }
 }

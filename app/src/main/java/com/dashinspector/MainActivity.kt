@@ -30,10 +30,10 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        val prefs = getSharedPreferences("test1", MODE_PRIVATE)
-        val prefs2 = getSharedPreferences("test2", MODE_PRIVATE)
-        prefs.edit { putString("key1", "value1") }
-        prefs2.edit { putString("key2", "value2") }
+//        val prefs = getSharedPreferences("test1", MODE_PRIVATE)
+//        val prefs2 = getSharedPreferences("test2", MODE_PRIVATE)
+//        prefs.edit { putString("key1", "value1") }
+//        prefs2.edit { putString("key2", "value2") }
 
     }
 }

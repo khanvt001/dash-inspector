@@ -1,28 +1,35 @@
 package com.dashinspector
 
+/**
+ * Data models for DashInspector API.
+ */
+
+// region SharedPreferences Models
+
+/**
+ * Represents a SharedPreference file with its entries.
+ */
 data class SharedPrefFile(
     val name: String,
-    val entries: List<PrefEntry>)
+    val entries: List<PrefEntry>
+)
 
+/**
+ * Represents a single entry in a SharedPreference file.
+ */
 data class PrefEntry(
     val key: String,
     val value: Any?,
     val type: String
 )
 
-data class ApiResponse<T>(
-    val status: String,
-    val data: T?,
-    val message: String? = null
-)
+// endregion
 
-enum class PrefAction {
-    ADD_ENTRY,
-    UPDATE_ENTRY,
-    ADD_PREF,
-    UNKNOWN
-}
+// region API Request Models
 
+/**
+ * Request model for creating or updating preferences.
+ */
 data class PrefRequest(
     val name: String?,
     val key: String?,
@@ -30,11 +37,19 @@ data class PrefRequest(
     val type: String?
 )
 
-data class RemoveEntryRequest(
+/**
+ * Request model for removing a preference entry.
+ */
+internal data class RemoveEntryRequest(
     val name: String?,
     val key: String?
 )
 
-data class RemovePrefRequest(
+/**
+ * Request model for removing an entire preference file.
+ */
+internal data class RemovePrefRequest(
     val name: String?
 )
+
+// endregion

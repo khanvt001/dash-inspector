@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /Users/khanguyen/Works/dashinspector log --format=\"%H %s %ad\" --date=short)",
+      "Bash(./gradlew:*)"
+    ]
+  }
+}
