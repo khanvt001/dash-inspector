@@ -22,3 +22,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "dash-inspector"
 include(":app")
+include(":app:dashinspector")

@@ -14,6 +14,7 @@ internal class DashInspectorServer(
     private val context: Context,
     private val gson: Gson,
     private val prefsInspector: SharedPreferencesInspector,
+    private val dbInspector: DatabaseInspector,
     port: Int,
 ) : NanoHTTPD(port) {
 
@@ -24,6 +25,7 @@ internal class DashInspectorServer(
         private const val CONTENT_TYPE_JSON = "application/json"
 
         private const val PREFS_PATH = "/api/preferences"
+        private const val DB_PATH = "/api/database"
 
         private val MIME_TYPES = mapOf(
             "html" to "text/html",
@@ -178,7 +180,196 @@ internal class DashInspectorServer(
     // region Database API
 
     private fun handleDatabaseApi(uri: String, method: Method, session: IHTTPSession): Response {
-        return notImplemented("Database API not implemented yet")
+        return when (uri) {
+            DB_PATH -> getDatabases()
+            "$DB_PATH/schema" -> handleGetSchema(method, session)
+            "$DB_PATH/erd" -> handleGetERD(method, session)
+            "$DB_PATH/table/data" -> handleGetTableData(method, session)
+            "$DB_PATH/query" -> handleExecuteQuery(method, session)
+            "$DB_PATH/table/update" -> handleUpdateRow(method, session)
+            "$DB_PATH/table/delete" -> handleDeleteRow(method, session)
+            "$DB_PATH/table/insert" -> handleInsertRow(method, session)
+            else -> notImplemented("Database API endpoint not found")
+        }
+    }
+
+    private fun getDatabases(): Response {
+        return try {
+            val databases = dbInspector.getAllDatabases()
+            jsonResponse(databases)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting databases: ${e.message}")
+            badRequest("Failed to get databases: ${e.message}")
+        }
+    }
+
+    private fun handleGetSchema(method: Method, session: IHTTPSession): Response {
+        return requirePost(method) {
+            val request = parseBody<DatabaseRequest>(session)
+                ?: return@requirePost badRequest("Invalid request body")
+
+            if (request.database.isNullOrEmpty()) {
+                return@requirePost badRequest("Missing required field: database")
+            }
+
+            try {
+                val schema = dbInspector.getDatabaseSchema(request.database)
+                jsonResponse(schema)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error getting schema: ${e.message}")
+                badRequest("Failed to get schema: ${e.message}")
+            }
+        }
+    }
+
+    private fun handleGetERD(method: Method, session: IHTTPSession): Response {
+        return requirePost(method) {
+            val request = parseBody<DatabaseRequest>(session)
+                ?: return@requirePost badRequest("Invalid request body")
+
+            if (request.database.isNullOrEmpty()) {
+                return@requirePost badRequest("Missing required field: database")
+            }
+
+            try {
+                val erd = dbInspector.getERD(request.database)
+                jsonResponse(erd)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error getting ERD: ${e.message}")
+                badRequest("Failed to get ERD: ${e.message}")
+            }
+        }
+    }
+
+    private fun handleGetTableData(method: Method, session: IHTTPSession): Response {
+        return requirePost(method) {
+            val request = parseBody<TableDataRequest>(session)
+                ?: return@requirePost badRequest("Invalid request body")
+
+            if (request.database.isNullOrEmpty()) {
+                return@requirePost badRequest("Missing required field: database")
+            }
+            if (request.table.isNullOrEmpty()) {
+                return@requirePost badRequest("Missing required field: table")
+            }
+
+            try {
+                val data = dbInspector.getTableData(
+                    databaseName = request.database,
+                    tableName = request.table,
+                    page = request.page,
+                    pageSize = request.pageSize
+                )
+                jsonResponse(data)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error getting table data: ${e.message}")
+                badRequest("Failed to get table data: ${e.message}")
+            }
+        }
+    }
+
+    private fun handleExecuteQuery(method: Method, session: IHTTPSession): Response {
+        return requirePost(method) {
+            val request = parseBody<QueryRequest>(session)
+                ?: return@requirePost badRequest("Invalid request body")
+
+            if (request.database.isNullOrEmpty()) {
+                return@requirePost badRequest("Missing required field: database")
+            }
+            if (request.query.isNullOrEmpty()) {
+                return@requirePost badRequest("Missing required field: query")
+            }
+
+            try {
+                val result = dbInspector.executeQuery(request.database, request.query)
+                jsonResponse(result)
+            } catch (e: SecurityException) {
+                Log.e(TAG, "Security error executing query: ${e.message}")
+                badRequest(e.message ?: "Query not allowed")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error executing query: ${e.message}")
+                badRequest("Failed to execute query: ${e.message}")
+            }
+        }
+    }
+
+    private fun handleUpdateRow(method: Method, session: IHTTPSession): Response {
+        return requirePost(method) {
+            val request = parseBody<UpdateRowRequest>(session)
+                ?: return@requirePost badRequest("Invalid request body")
+
+            if (request.database.isNullOrEmpty()) {
+                return@requirePost badRequest("Missing required field: database")
+            }
+            if (request.table.isNullOrEmpty()) {
+                return@requirePost badRequest("Missing required field: table")
+            }
+            if (request.primaryKey.isNullOrEmpty()) {
+                return@requirePost badRequest("Missing required field: primaryKey")
+            }
+            if (request.values.isNullOrEmpty()) {
+                return@requirePost badRequest("Missing required field: values")
+            }
+
+            val result = dbInspector.updateRow(
+                databaseName = request.database,
+                tableName = request.table,
+                primaryKey = request.primaryKey,
+                values = request.values
+            )
+
+            handleInspectorResult(result)
+        }
+    }
+
+    private fun handleDeleteRow(method: Method, session: IHTTPSession): Response {
+        return requirePost(method) {
+            val request = parseBody<DeleteRowRequest>(session)
+                ?: return@requirePost badRequest("Invalid request body")
+
+            if (request.database.isNullOrEmpty()) {
+                return@requirePost badRequest("Missing required field: database")
+            }
+            if (request.table.isNullOrEmpty()) {
+                return@requirePost badRequest("Missing required field: table")
+            }
+            if (request.primaryKey.isNullOrEmpty()) {
+                return@requirePost badRequest("Missing required field: primaryKey")
+            }
+
+            val result = dbInspector.deleteRow(
+                databaseName = request.database,
+                tableName = request.table,
+                primaryKey = request.primaryKey
+            )
+
+            handleInspectorResult(result)
+        }
+    }
+
+    private fun handleInsertRow(method: Method, session: IHTTPSession): Response {
+        return requirePost(method) {
+            val request = parseBody<InsertRowRequest>(session)
+                ?: return@requirePost badRequest("Invalid request body")
+
+            if (request.database.isNullOrEmpty()) {
+                return@requirePost badRequest("Missing required field: database")
+            }
+            if (request.table.isNullOrEmpty()) {
+                return@requirePost badRequest("Missing required field: table")
+            }
+            if (request.values.isNullOrEmpty()) {
+                return@requirePost badRequest("Missing required field: values")
+            }
+
+            val result = dbInspector.insertRow(
+                databaseName = request.database,
+                tableName = request.table,
+                values = request.values
+            )
+
+            handleInspectorResult(result)
+        }
     }
 
     // endregion

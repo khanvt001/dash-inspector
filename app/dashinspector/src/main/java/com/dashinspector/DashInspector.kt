@@ -45,12 +45,14 @@ object DashInspector {
         val appContext = context.applicationContext
         val gson = Gson()
         val prefsInspector = SharedPreferencesInspector(appContext)
+        val dbInspector = DatabaseInspector(appContext)
 
         server = DashInspectorServer(
             context = appContext,
             port = port,
             gson = gson,
-            prefsInspector = prefsInspector
+            prefsInspector = prefsInspector,
+            dbInspector = dbInspector
         )
 
         try {

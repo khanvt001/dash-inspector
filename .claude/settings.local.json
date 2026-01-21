@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(git -C /Users/khanguyen/Works/dashinspector log --format=\"%H %s %ad\" --date=short)",
-      "Bash(./gradlew:*)"
+      "Bash(./gradlew:*)",
+      "Bash(npm run build:*)",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(npm install:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(npm uninstall:*)"
     ]
   }
 }
