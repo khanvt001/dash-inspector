@@ -1,0 +1,167 @@
+.erd-viewer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background-color: #111827;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.erd-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  padding: var(--spacing-3) var(--spacing-4);
+  background-color: #1f2937;
+  border-bottom: 1px solid #374151;
+  flex-shrink: 0;
+}
+
+.erd-info {
+  font-size: var(--text-sm);
+  color: #9ca3af;
+}
+
+.erd-hint {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: #6b7280;
+}
+
+.erd-flow-container {
+  flex: 1;
+  width: 100%;
+  min-height: 400px;
+}
+
+.erd-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #6b7280;
+  font-size: var(--text-base);
+}
+
+/* Table Node Styles */
+.erd-table-node {
+  background-color: #1f2937;
+  border: 2px solid #374151;
+  border-radius: 8px;
+  min-width: 200px;
+  max-width: 280px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+}
+
+.erd-table-header {
+  padding: 10px 12px;
+  border-radius: 6px 6px 0 0;
+  border-bottom: 2px solid rgba(0, 0, 0, 0.2);
+}
+
+.erd-table-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.erd-table-columns {
+  padding: 4px 0;
+}
+
+.erd-column-row {
+  position: relative;
+  padding: 6px 12px;
+  border-bottom: 1px solid #374151;
+}
+
+.erd-column-row:last-child {
+  border-bottom: none;
+}
+
+.erd-column-row:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.erd-column-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.erd-pk-icon {
+  flex-shrink: 0;
+}
+
+.erd-column-name {
+  flex: 1;
+  font-size: 12px;
+  color: #e5e7eb;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+}
+
+.erd-column-type {
+  font-size: 10px;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  opacity: 0.8;
+}
+
+/* ReactFlow Overrides */
+.erd-flow-container .react-flow {
+  background-color: #111827;
+}
+
+.erd-flow-container .react-flow__background {
+  background-color: #111827;
+}
+
+.erd-flow-container .react-flow__controls {
+  background-color: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+}
+
+.erd-flow-container .react-flow__controls-button {
+  background-color: #1f2937;
+  border-color: #374151;
+  color: #e5e7eb;
+  width: 28px;
+  height: 28px;
+}
+
+.erd-flow-container .react-flow__controls-button:hover {
+  background-color: #374151;
+}
+
+.erd-flow-container .react-flow__controls-button svg {
+  fill: #e5e7eb;
+}
+
+.erd-flow-container .react-flow__minimap {
+  background-color: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 8px;
+}
+
+.erd-flow-container .react-flow__handle {
+  width: 8px;
+  height: 8px;
+  border: 2px solid #374151;
+}
+
+.erd-flow-container .react-flow__handle:hover {
+  background-color: #60a5fa;
+}
+
+.erd-flow-container .react-flow__edge-path {
+  stroke: #6b7280;
+  stroke-width: 2;
+}
+
+.erd-flow-container .react-flow__attribution {
+  display: none;
+}

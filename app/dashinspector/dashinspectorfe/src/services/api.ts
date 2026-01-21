@@ -46,3 +46,21 @@ export const preferencesApi = {
   removeEntry: (data: RemoveEntryRequest) => postJson('/preferences/entry/remove', data),
   removePreference: (data: RemovePreferenceRequest) => postJson('/preferences/remove', data),
 };
+
+export const databaseApi = {
+  getAll: () => fetchJson<import('../types/database').DatabaseListResponse>('/database'),
+  getSchema: (data: import('../types/database').DatabaseRequest) =>
+    postJson<import('../types/database').DatabaseSchemaResponse>('/database/schema', data),
+  getERD: (data: import('../types/database').DatabaseRequest) =>
+    postJson<import('../types/database').ERDResponse>('/database/erd', data),
+  getTableData: (data: import('../types/database').TableDataRequest) =>
+    postJson<import('../types/database').TableDataResponse>('/database/table/data', data),
+  executeQuery: (data: import('../types/database').QueryRequest) =>
+    postJson<import('../types/database').QueryResponse>('/database/query', data),
+  updateRow: (data: import('../types/database').UpdateRowRequest) =>
+    postJson('/database/table/update', data),
+  deleteRow: (data: import('../types/database').DeleteRowRequest) =>
+    postJson('/database/table/delete', data),
+  insertRow: (data: import('../types/database').InsertRowRequest) =>
+    postJson('/database/table/insert', data),
+};
