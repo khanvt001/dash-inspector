@@ -4,6 +4,8 @@ import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.util.Log
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
@@ -33,9 +35,9 @@ internal class DatabaseInspector(private val context: Context) {
     /**
      * Retrieves all database files in the app's databases directory.
      */
-    fun getAllDatabases(): DatabaseListResponse {
+    suspend fun getAllDatabases(): DatabaseListResponse = withContext(Dispatchers.IO) {
         val dbDir = context.getDatabasePath("_").parentFile
-            ?: return DatabaseListResponse(emptyList(), 0)
+            ?: return@withContext DatabaseListResponse(emptyList(), 0)
 
         val databases = dbDir.listFiles()
             ?.filter { it.isFile && !it.name.endsWith("-journal") && !it.name.endsWith("-wal") && !it.name.endsWith("-shm") }
@@ -49,7 +51,7 @@ internal class DatabaseInspector(private val context: Context) {
             }
             ?: emptyList()
 
-        return DatabaseListResponse(
+        return@withContext DatabaseListResponse(
             databases = databases,
             total = databases.size
         )
@@ -58,7 +60,7 @@ internal class DatabaseInspector(private val context: Context) {
     /**
      * Retrieves the schema (tables and columns) for a specific database.
      */
-    fun getDatabaseSchema(databaseName: String): DatabaseSchemaResponse {
+    suspend fun getDatabaseSchema(databaseName: String): DatabaseSchemaResponse = withContext(Dispatchers.IO) {
         val dbPath = getDatabasePath(databaseName)
         val db = openDatabase(dbPath) ?: throw IllegalArgumentException("Cannot open database: $databaseName")
 
@@ -76,7 +78,7 @@ internal class DatabaseInspector(private val context: Context) {
                 tables.add(TableInfo(name = tableName, columns = columns, rowCount = rowCount))
             }
 
-            return DatabaseSchemaResponse(
+            return@withContext DatabaseSchemaResponse(
                 database = databaseName,
                 tables = tables,
                 isRoomDatabase = isRoomDatabase(dbPath)
@@ -89,12 +91,12 @@ internal class DatabaseInspector(private val context: Context) {
     /**
      * Retrieves paginated data from a specific table.
      */
-    fun getTableData(
+    suspend fun getTableData(
         databaseName: String,
         tableName: String,
         page: Int = 1,
         pageSize: Int = DEFAULT_PAGE_SIZE
-    ): TableDataResponse {
+    ): TableDataResponse = withContext(Dispatchers.IO) {
         val dbPath = getDatabasePath(databaseName)
         val db = openDatabase(dbPath) ?: throw IllegalArgumentException("Cannot open database: $databaseName")
 
@@ -117,7 +119,7 @@ internal class DatabaseInspector(private val context: Context) {
                 }
             }
 
-            return TableDataResponse(
+            return@withContext TableDataResponse(
                 database = databaseName,
                 table = tableName,
                 columns = columns,
@@ -135,7 +137,7 @@ internal class DatabaseInspector(private val context: Context) {
     /**
      * Executes a read-only SQL query.
      */
-    fun executeQuery(databaseName: String, query: String): QueryResponse {
+    suspend fun executeQuery(databaseName: String, query: String): QueryResponse = withContext(Dispatchers.IO) {
         val trimmedQuery = query.trim()
         val upperQuery = trimmedQuery.uppercase()
 
@@ -162,7 +164,7 @@ internal class DatabaseInspector(private val context: Context) {
 
             val executionTime = System.currentTimeMillis() - startTime
 
-            return QueryResponse(
+            return@withContext QueryResponse(
                 database = databaseName,
                 query = trimmedQuery,
                 columns = columns,
@@ -178,22 +180,22 @@ internal class DatabaseInspector(private val context: Context) {
     /**
      * Updates a row in a table.
      */
-    fun updateRow(
+    suspend fun updateRow(
         databaseName: String,
         tableName: String,
         primaryKey: Map<String, Any?>,
         values: Map<String, Any?>
-    ): Map<String, String> {
+    ): Map<String, String> = withContext(Dispatchers.IO) {
         if (primaryKey.isEmpty()) {
-            return errorResult("Primary key is required for update")
+            return@withContext errorResult("Primary key is required for update")
         }
         if (values.isEmpty()) {
-            return errorResult("No values to update")
+            return@withContext errorResult("No values to update")
         }
 
         val dbPath = getDatabasePath(databaseName)
         val db = openDatabaseWritable(dbPath)
-            ?: return errorResult("Cannot open database for writing: $databaseName")
+            ?: return@withContext errorResult("Cannot open database for writing: $databaseName")
 
         try {
             val setClause = values.keys.joinToString(", ") { "\"${it.replace("\"", "\"\"")}\" = ?" }
@@ -203,9 +205,9 @@ internal class DatabaseInspector(private val context: Context) {
             val args = (values.values + primaryKey.values).map { it?.toString() ?: "" }.toTypedArray()
 
             db.execSQL(sql, args)
-            return successResult("Row updated successfully")
+            return@withContext successResult("Row updated successfully")
         } catch (e: Exception) {
-            return errorResult("Failed to update row: ${e.message}")
+            return@withContext errorResult("Failed to update row: ${e.message}")
         } finally {
             db.close()
         }
@@ -214,18 +216,18 @@ internal class DatabaseInspector(private val context: Context) {
     /**
      * Deletes a row from a table.
      */
-    fun deleteRow(
+    suspend fun deleteRow(
         databaseName: String,
         tableName: String,
         primaryKey: Map<String, Any?>
-    ): Map<String, String> {
+    ): Map<String, String> = withContext(Dispatchers.IO) {
         if (primaryKey.isEmpty()) {
-            return errorResult("Primary key is required for delete")
+            return@withContext errorResult("Primary key is required for delete")
         }
 
         val dbPath = getDatabasePath(databaseName)
         val db = openDatabaseWritable(dbPath)
-            ?: return errorResult("Cannot open database for writing: $databaseName")
+            ?: return@withContext errorResult("Cannot open database for writing: $databaseName")
 
         try {
             val whereClause = primaryKey.keys.joinToString(" AND ") { "\"${it.replace("\"", "\"\"")}\" = ?" }
@@ -233,9 +235,9 @@ internal class DatabaseInspector(private val context: Context) {
             val args = primaryKey.values.map { it?.toString() ?: "" }.toTypedArray()
 
             db.execSQL(sql, args)
-            return successResult("Row deleted successfully")
+            return@withContext successResult("Row deleted successfully")
         } catch (e: Exception) {
-            return errorResult("Failed to delete row: ${e.message}")
+            return@withContext errorResult("Failed to delete row: ${e.message}")
         } finally {
             db.close()
         }
@@ -244,18 +246,18 @@ internal class DatabaseInspector(private val context: Context) {
     /**
      * Inserts a new row into a table.
      */
-    fun insertRow(
+    suspend fun insertRow(
         databaseName: String,
         tableName: String,
         values: Map<String, Any?>
-    ): Map<String, String> {
+    ): Map<String, String> = withContext(Dispatchers.IO) {
         if (values.isEmpty()) {
-            return errorResult("No values to insert")
+            return@withContext errorResult("No values to insert")
         }
 
         val dbPath = getDatabasePath(databaseName)
         val db = openDatabaseWritable(dbPath)
-            ?: return errorResult("Cannot open database for writing: $databaseName")
+            ?: return@withContext errorResult("Cannot open database for writing: $databaseName")
 
         try {
             val columns = values.keys.joinToString(", ") { "\"${it.replace("\"", "\"\"")}\"" }
@@ -264,9 +266,9 @@ internal class DatabaseInspector(private val context: Context) {
             val args = values.values.map { it?.toString() ?: "" }.toTypedArray()
 
             db.execSQL(sql, args)
-            return successResult("Row inserted successfully")
+            return@withContext successResult("Row inserted successfully")
         } catch (e: Exception) {
-            return errorResult("Failed to insert row: ${e.message}")
+            return@withContext errorResult("Failed to insert row: ${e.message}")
         } finally {
             db.close()
         }
@@ -276,7 +278,7 @@ internal class DatabaseInspector(private val context: Context) {
      * Retrieves ERD (Entity Relationship Diagram) data for a database.
      * Includes tables, columns, and foreign key relationships.
      */
-    fun getERD(databaseName: String): ERDResponse {
+    suspend fun getERD(databaseName: String): ERDResponse = withContext(Dispatchers.IO) {
         val dbPath = getDatabasePath(databaseName)
         val db = openDatabase(dbPath) ?: throw IllegalArgumentException("Cannot open database: $databaseName")
 
@@ -320,7 +322,7 @@ internal class DatabaseInspector(private val context: Context) {
             Log.d("DashInspector","Table: $tables")
             Log.d("DashInspector","Relationships: $relationships")
 
-            return ERDResponse(
+            return@withContext ERDResponse(
                 database = databaseName,
                 tables = tables,
                 relationships = relationships,

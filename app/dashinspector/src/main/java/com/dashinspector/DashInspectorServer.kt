@@ -4,6 +4,11 @@ import android.content.Context
 import android.util.Log
 import com.google.gson.Gson
 import fi.iki.elonen.NanoHTTPD
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.io.ByteArrayInputStream
 import java.io.FileNotFoundException
 
@@ -195,7 +200,9 @@ internal class DashInspectorServer(
 
     private fun getDatabases(): Response {
         return try {
-            val databases = dbInspector.getAllDatabases()
+            val databases = runBlocking(Dispatchers.IO) {
+                dbInspector.getAllDatabases()
+            }
             jsonResponse(databases)
         } catch (e: Exception) {
             Log.e(TAG, "Error getting databases: ${e.message}")
@@ -213,7 +220,9 @@ internal class DashInspectorServer(
             }
 
             try {
-                val schema = dbInspector.getDatabaseSchema(request.database)
+                val schema = runBlocking(Dispatchers.IO) {
+                    dbInspector.getDatabaseSchema(request.database)
+                }
                 jsonResponse(schema)
             } catch (e: Exception) {
                 Log.e(TAG, "Error getting schema: ${e.message}")
@@ -232,7 +241,9 @@ internal class DashInspectorServer(
             }
 
             try {
-                val erd = dbInspector.getERD(request.database)
+                val erd = runBlocking(Dispatchers.IO) {
+                    dbInspector.getERD(request.database)
+                }
                 jsonResponse(erd)
             } catch (e: Exception) {
                 Log.e(TAG, "Error getting ERD: ${e.message}")
@@ -254,12 +265,14 @@ internal class DashInspectorServer(
             }
 
             try {
-                val data = dbInspector.getTableData(
-                    databaseName = request.database,
-                    tableName = request.table,
-                    page = request.page,
-                    pageSize = request.pageSize
-                )
+                val data = runBlocking(Dispatchers.IO) {
+                    dbInspector.getTableData(
+                        databaseName = request.database,
+                        tableName = request.table,
+                        page = request.page,
+                        pageSize = request.pageSize
+                    )
+                }
                 jsonResponse(data)
             } catch (e: Exception) {
                 Log.e(TAG, "Error getting table data: ${e.message}")
@@ -281,7 +294,9 @@ internal class DashInspectorServer(
             }
 
             try {
-                val result = dbInspector.executeQuery(request.database, request.query)
+                val result = runBlocking(Dispatchers.IO) {
+                    dbInspector.executeQuery(request.database, request.query)
+                }
                 jsonResponse(result)
             } catch (e: SecurityException) {
                 Log.e(TAG, "Security error executing query: ${e.message}")
@@ -311,12 +326,14 @@ internal class DashInspectorServer(
                 return@requirePost badRequest("Missing required field: values")
             }
 
-            val result = dbInspector.updateRow(
-                databaseName = request.database,
-                tableName = request.table,
-                primaryKey = request.primaryKey,
-                values = request.values
-            )
+            val result = runBlocking(Dispatchers.IO) {
+                dbInspector.updateRow(
+                    databaseName = request.database,
+                    tableName = request.table,
+                    primaryKey = request.primaryKey,
+                    values = request.values
+                )
+            }
 
             handleInspectorResult(result)
         }
@@ -337,11 +354,13 @@ internal class DashInspectorServer(
                 return@requirePost badRequest("Missing required field: primaryKey")
             }
 
-            val result = dbInspector.deleteRow(
-                databaseName = request.database,
-                tableName = request.table,
-                primaryKey = request.primaryKey
-            )
+            val result = runBlocking(Dispatchers.IO) {
+                dbInspector.deleteRow(
+                    databaseName = request.database,
+                    tableName = request.table,
+                    primaryKey = request.primaryKey
+                )
+            }
 
             handleInspectorResult(result)
         }
@@ -362,11 +381,13 @@ internal class DashInspectorServer(
                 return@requirePost badRequest("Missing required field: values")
             }
 
-            val result = dbInspector.insertRow(
-                databaseName = request.database,
-                tableName = request.table,
-                values = request.values
-            )
+            val result = runBlocking(Dispatchers.IO) {
+                dbInspector.insertRow(
+                    databaseName = request.database,
+                    tableName = request.table,
+                    values = request.values
+                )
+            }
 
             handleInspectorResult(result)
         }
