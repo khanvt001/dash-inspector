@@ -3,7 +3,15 @@ const API_BASE_URL = 'http://localhost:8080/api';
 export async function fetchJson<T>(endpoint: string): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${endpoint}`);
   if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+    // Try to extract error message from response body
+    try {
+      const errorData = await response.json();
+      const errorMessage = errorData.error || errorData.message || `HTTP error! status: ${response.status}`;
+      throw new Error(errorMessage);
+    } catch (parseError) {
+      // If we can't parse the response, fall back to status code
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
   }
   return response.json();
 }
@@ -17,7 +25,15 @@ export async function postJson<T>(endpoint: string, body: unknown): Promise<T> {
     body: JSON.stringify(body),
   });
   if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+    // Try to extract error message from response body
+    try {
+      const errorData = await response.json();
+      const errorMessage = errorData.error || errorData.message || `HTTP error! status: ${response.status}`;
+      throw new Error(errorMessage);
+    } catch (parseError) {
+      // If we can't parse the response, fall back to status code
+      throw new Error(`HTTP error! status: ${response.status} - ${parseError}`);
+    }
   }
   return response.json();
 }

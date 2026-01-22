@@ -44,12 +44,28 @@ export default function DatabasePage() {
   const [editingRow, setEditingRow] = useState<Record<string, unknown> | null>(null);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
 
+  // Toast notification state
+  const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
+
   // View mode: 'data' or 'erd'
   const [viewMode, setViewMode] = useState<'data' | 'erd'>('data');
 
   useEffect(() => {
     loadDatabases();
   }, []);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => {
+        setToast(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  const showToast = (message: string, type: 'error' | 'success' = 'error') => {
+    setToast({ message, type });
+  };
 
   const loadDatabases = async () => {
     try {
@@ -237,8 +253,9 @@ export default function DatabasePage() {
 
       closeModal();
       await loadTableData(selectedDb, selectedTable, currentPage);
+      showToast('Row inserted successfully', 'success');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to insert row');
+      showToast(err instanceof Error ? err.message : 'Failed to insert row', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -268,8 +285,9 @@ export default function DatabasePage() {
 
       closeModal();
       await loadTableData(selectedDb, selectedTable, currentPage);
+      showToast('Row updated successfully', 'success');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to update row');
+      showToast(err instanceof Error ? err.message : 'Failed to update row', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -288,8 +306,9 @@ export default function DatabasePage() {
 
       closeModal();
       await loadTableData(selectedDb, selectedTable, currentPage);
+      showToast('Row deleted successfully', 'success');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to delete row');
+      showToast(err instanceof Error ? err.message : 'Failed to delete row', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -678,32 +697,36 @@ export default function DatabasePage() {
         onClose={closeModal}
         title={modalType === 'insert' ? 'Insert Row' : 'Edit Row'}
       >
-        <form onSubmit={modalType === 'insert' ? handleInsert : handleUpdate} className="modal-form">
-          {getSelectedTableInfo()?.columns.map((col) => {
-            const isPk = col.pk > 0;
-            return (
-              <Input
-                key={col.name}
-                label={
-                  <span>
-                    {col.name}
-                    <span style={{ color: getTypeColor(col.type), marginLeft: '8px', fontSize: '12px' }}>
-                      {col.type}
-                    </span>
-                    {isPk && <span style={{ color: 'var(--warning-color)', marginLeft: '4px' }}>(PK)</span>}
-                    {col.notnull && <span style={{ color: 'var(--danger-color)', marginLeft: '4px' }}>*</span>}
-                  </span>
-                }
-                value={formValues[col.name] ?? ''}
-                onChange={(e) => setFormValues(prev => ({ ...prev, [col.name]: e.target.value }))}
-                placeholder={col.defaultValue ?? `Enter ${col.type}`}
-                disabled={modalType === 'edit' && isPk}
-                required={col.notnull && !isPk}
-                fullWidth
-              />
-            );
-          })}
-          <div className="modal-actions">
+        <form onSubmit={modalType === 'insert' ? handleInsert : handleUpdate} className="modal-form-wrapper">
+          <div className="modal-content">
+            <div className="modal-form-content">
+              {getSelectedTableInfo()?.columns.map((col) => {
+                const isPk = col.pk > 0;
+                return (
+                  <Input
+                    key={col.name}
+                    label={
+                      <span>
+                        {col.name}
+                        <span style={{ color: getTypeColor(col.type), marginLeft: '8px', fontSize: '12px' }}>
+                          {col.type}
+                        </span>
+                        {isPk && <span style={{ color: 'var(--warning-color)', marginLeft: '4px' }}>(PK)</span>}
+                        {col.notnull && <span style={{ color: 'var(--danger-color)', marginLeft: '4px' }}>*</span>}
+                      </span>
+                    }
+                    value={formValues[col.name] ?? ''}
+                    onChange={(e) => setFormValues(prev => ({ ...prev, [col.name]: e.target.value }))}
+                    placeholder={col.defaultValue ?? `Enter ${col.type}`}
+                    disabled={modalType === 'edit' && isPk}
+                    required={col.notnull && !isPk}
+                    fullWidth
+                  />
+                );
+              })}
+            </div>
+          </div>
+          <div className="modal-footer">
             <Button type="button" variant="ghost" onClick={closeModal}>
               Cancel
             </Button>
@@ -720,15 +743,19 @@ export default function DatabasePage() {
         onClose={closeModal}
         title="Delete Row"
       >
-        <div className="delete-modal-content">
-          <p>Are you sure you want to delete this row?</p>
-          {editingRow && (
-            <div className="delete-pk-info">
-              <strong>Primary Key:</strong>
-              <code>{JSON.stringify(editingRow)}</code>
+        <>
+          <div className="modal-content">
+            <div className="delete-modal-content">
+              <p>Are you sure you want to delete this row?</p>
+              {editingRow && (
+                <div className="delete-pk-info">
+                  <strong>Primary Key:</strong>
+                  <code>{JSON.stringify(editingRow)}</code>
+                </div>
+              )}
             </div>
-          )}
-          <div className="modal-actions">
+          </div>
+          <div className="modal-footer">
             <Button type="button" variant="ghost" onClick={closeModal}>
               Cancel
             </Button>
@@ -741,8 +768,37 @@ export default function DatabasePage() {
               Delete
             </Button>
           </div>
-        </div>
+        </>
       </Modal>
+
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`toast-notification ${toast.type}`}>
+          <div className="toast-content">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+              {toast.type === 'error' ? (
+                <>
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </>
+              ) : (
+                <>
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
+                </>
+              )}
+            </svg>
+            <span>{toast.message}</span>
+          </div>
+          <button className="toast-close" onClick={() => setToast(null)} aria-label="Close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

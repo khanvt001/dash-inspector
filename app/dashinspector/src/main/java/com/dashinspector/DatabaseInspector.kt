@@ -347,7 +347,10 @@ internal class DatabaseInspector(private val context: Context) {
 
     private fun openDatabaseWritable(path: String): SQLiteDatabase? {
         return try {
-            SQLiteDatabase.openDatabase(path, null, SQLiteDatabase.OPEN_READWRITE)
+            val db = SQLiteDatabase.openDatabase(path, null, SQLiteDatabase.OPEN_READWRITE)
+            // Enable foreign key constraints
+            db.execSQL("PRAGMA foreign_keys = ON")
+            db
         } catch (e: Exception) {
             null
         }

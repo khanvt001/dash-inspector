@@ -41,9 +41,7 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
             </svg>
           </button>
         </div>
-        <div className="modal-content">
-          {children}
-        </div>
+        {children}
       </div>
     </div>
   );

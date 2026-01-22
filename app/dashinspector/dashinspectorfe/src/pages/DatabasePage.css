@@ -304,6 +304,14 @@
   overflow: hidden;
 }
 
+.data-card .card-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .data-header {
   display: flex;
   justify-content: space-between;
@@ -403,7 +411,7 @@
 .row-actions {
   display: flex;
   gap: var(--spacing-1);
-  opacity: 0;
+  opacity: 0.6;
   transition: opacity 0.15s;
 }
 
@@ -423,6 +431,13 @@
   cursor: pointer;
   color: var(--text-tertiary);
   transition: background-color 0.15s, color 0.15s;
+  padding: 0;
+}
+
+.row-action-btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
 }
 
 .row-action-btn:hover {
@@ -599,18 +614,113 @@
 }
 
 /* Modal Form */
-.modal-form {
+.modal-form-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.modal-form-content {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-4);
 }
 
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--spacing-2);
-  margin-top: var(--spacing-2);
+.modal-form-wrapper .modal-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
+
+.modal-form-wrapper .modal-footer {
+  flex-shrink: 0;
+}
+
+/* Toast Notification */
+.toast-notification {
+  position: fixed;
+  top: var(--spacing-6);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  min-width: 320px;
+  max-width: 500px;
+  padding: var(--spacing-4);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3), 0 6px 12px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  animation: slideInDown 0.3s ease-out;
+  backdrop-filter: blur(10px);
+}
+
+@keyframes slideInDown {
+  from {
+    transform: translateX(-50%) translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
+
+.toast-notification.error {
+  background-color: rgba(239, 68, 68, 0.95);
+  border: 1px solid rgba(220, 38, 38, 0.8);
+  color: white;
+}
+
+.toast-notification.success {
+  background-color: rgba(34, 197, 94, 0.95);
+  border: 1px solid rgba(22, 163, 74, 0.8);
+  color: white;
+}
+
+.toast-content {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  flex: 1;
+}
+
+.toast-content svg {
+  flex-shrink: 0;
+}
+
+.toast-content span {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.toast-close {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: var(--spacing-1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: background-color 0.15s;
+  flex-shrink: 0;
+}
+
+.toast-close:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.toast-close svg {
+  width: 16px;
+  height: 16px;
+}
+
 
 /* Header Actions */
 .header-actions {

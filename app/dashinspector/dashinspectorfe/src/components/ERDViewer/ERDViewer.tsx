@@ -91,77 +91,96 @@ function ERDMarkerDefinitions() {
   return (
     <svg style={{ position: 'absolute', width: 0, height: 0 }}>
       <defs>
-        {/* "One" marker - single perpendicular line */}
-        <marker
-          id="erd-one"
-          viewBox="0 0 20 20"
-          markerWidth="10"
-          markerHeight="10"
-          refX="15"
-          refY="10"
-          orient="auto-start-reverse"
-        >
-          <line x1="15" y1="4" x2="15" y2="16" stroke="#6b7280" strokeWidth="2" />
-        </marker>
+        {EDGE_COLORS.map((color, idx) => (
+          <g key={`marker-set-${idx}`}>
+            {/* "One" marker - single perpendicular line */}
+            <marker
+              id={`erd-one-${idx}`}
+              viewBox="0 0 20 20"
+              markerWidth="10"
+              markerHeight="10"
+              refX="15"
+              refY="10"
+              orient="auto-start-reverse"
+            >
+              <line x1="15" y1="4" x2="15" y2="16" stroke={color} strokeWidth="2" />
+            </marker>
 
-        {/* "Many" marker - crow's foot */}
-        <marker
-          id="erd-many"
-          viewBox="0 0 20 20"
-          markerWidth="10"
-          markerHeight="10"
-          refX="15"
-          refY="10"
-          orient="auto-start-reverse"
-        >
-          <line x1="5" y1="10" x2="15" y2="4" stroke="#6b7280" strokeWidth="2" />
-          <line x1="5" y1="10" x2="15" y2="10" stroke="#6b7280" strokeWidth="2" />
-          <line x1="5" y1="10" x2="15" y2="16" stroke="#6b7280" strokeWidth="2" />
-        </marker>
+            {/* "Many" marker - crow's foot */}
+            <marker
+              id={`erd-many-${idx}`}
+              viewBox="0 0 20 20"
+              markerWidth="10"
+              markerHeight="10"
+              refX="15"
+              refY="10"
+              orient="auto-start-reverse"
+            >
+              <line x1="5" y1="10" x2="15" y2="4" stroke={color} strokeWidth="2" />
+              <line x1="5" y1="10" x2="15" y2="10" stroke={color} strokeWidth="2" />
+              <line x1="5" y1="10" x2="15" y2="16" stroke={color} strokeWidth="2" />
+            </marker>
 
-        {/* "One" marker for start (reversed direction) */}
-        <marker
-          id="erd-one-start"
-          viewBox="0 0 20 20"
-          markerWidth="10"
-          markerHeight="10"
-          refX="5"
-          refY="10"
-          orient="auto"
-        >
-          <line x1="5" y1="4" x2="5" y2="16" stroke="#6b7280" strokeWidth="2" />
-        </marker>
+            {/* "One" marker for start (reversed direction) */}
+            <marker
+              id={`erd-one-start-${idx}`}
+              viewBox="0 0 20 20"
+              markerWidth="10"
+              markerHeight="10"
+              refX="5"
+              refY="10"
+              orient="auto"
+            >
+              <line x1="5" y1="4" x2="5" y2="16" stroke={color} strokeWidth="2" />
+            </marker>
 
-        {/* "Many" marker for start (reversed direction) */}
-        <marker
-          id="erd-many-start"
-          viewBox="0 0 20 20"
-          markerWidth="10"
-          markerHeight="10"
-          refX="5"
-          refY="10"
-          orient="auto"
-        >
-          <line x1="15" y1="10" x2="5" y2="4" stroke="#6b7280" strokeWidth="2" />
-          <line x1="15" y1="10" x2="5" y2="10" stroke="#6b7280" strokeWidth="2" />
-          <line x1="15" y1="10" x2="5" y2="16" stroke="#6b7280" strokeWidth="2" />
-        </marker>
+            {/* "Many" marker for start (reversed direction) */}
+            <marker
+              id={`erd-many-start-${idx}`}
+              viewBox="0 0 20 20"
+              markerWidth="10"
+              markerHeight="10"
+              refX="5"
+              refY="10"
+              orient="auto"
+            >
+              <line x1="15" y1="10" x2="5" y2="4" stroke={color} strokeWidth="2" />
+              <line x1="15" y1="10" x2="5" y2="10" stroke={color} strokeWidth="2" />
+              <line x1="15" y1="10" x2="5" y2="16" stroke={color} strokeWidth="2" />
+            </marker>
+          </g>
+        ))}
       </defs>
     </svg>
   );
 }
 
-// Get markers based on relationship type
-function getRelationshipMarkers(relationshipType: 'one-to-one' | 'one-to-many' | 'many-to-one') {
+// Get markers based on relationship type and color index
+function getRelationshipMarkers(
+  relationshipType: 'one-to-one' | 'one-to-many' | 'many-to-one',
+  colorIndex: number
+) {
   switch (relationshipType) {
     case 'one-to-one':
-      return { markerStart: 'url(#erd-one-start)', markerEnd: 'url(#erd-one)' };
+      return {
+        markerStart: `url(#erd-one-start-${colorIndex})`,
+        markerEnd: `url(#erd-one-${colorIndex})`
+      };
     case 'one-to-many':
-      return { markerStart: 'url(#erd-one-start)', markerEnd: 'url(#erd-many)' };
+      return {
+        markerStart: `url(#erd-one-start-${colorIndex})`,
+        markerEnd: `url(#erd-many-${colorIndex})`
+      };
     case 'many-to-one':
-      return { markerStart: 'url(#erd-many-start)', markerEnd: 'url(#erd-one)' };
+      return {
+        markerStart: `url(#erd-many-start-${colorIndex})`,
+        markerEnd: `url(#erd-one-${colorIndex})`
+      };
     default:
-      return { markerStart: 'url(#erd-one-start)', markerEnd: 'url(#erd-many)' };
+      return {
+        markerStart: `url(#erd-one-start-${colorIndex})`,
+        markerEnd: `url(#erd-many-${colorIndex})`
+      };
   }
 }
 
@@ -170,16 +189,21 @@ interface ERDViewerProps {
   relationships: ERDRelationship[];
 }
 
-// Color palette for table headers
-const TABLE_COLORS = [
+// Single color for all table headers
+const TABLE_HEADER_COLOR = '#6366f1'; // indigo
+
+// Color palette for relationship edges
+const EDGE_COLORS = [
   '#3b82f6', // blue
-  '#22c55e', // green
-  '#eab308', // yellow
-  '#a855f7', // purple
+  '#10b981', // emerald
+  '#f59e0b', // amber
+  '#8b5cf6', // violet
   '#ec4899', // pink
   '#f97316', // orange
   '#06b6d4', // cyan
   '#ef4444', // red
+  '#14b8a6', // teal
+  '#a855f7', // purple
 ];
 
 // Get type color for column types
@@ -258,7 +282,9 @@ function ERDViewerInner({ tables, relationships }: ERDViewerProps) {
   const initialEdges: Edge[] = useMemo(() => {
     return relationships.map((rel, index) => {
       const isSelfReferencing = rel.fromTable === rel.toTable;
-      const markers = getRelationshipMarkers(rel.relationshipType);
+      const colorIndex = index % EDGE_COLORS.length;
+      const edgeColor = EDGE_COLORS[colorIndex];
+      const markers = getRelationshipMarkers(rel.relationshipType, colorIndex);
 
       return {
         id: `edge-${index}`,
@@ -272,7 +298,7 @@ function ERDViewerInner({ tables, relationships }: ERDViewerProps) {
         type: 'smoothstep',
         animated: false,
         style: {
-          stroke: '#6b7280',
+          stroke: edgeColor,
           strokeWidth: 2,
           markerStart: markers.markerStart,
           markerEnd: markers.markerEnd,
@@ -283,14 +309,14 @@ function ERDViewerInner({ tables, relationships }: ERDViewerProps) {
 
   // Create initial nodes without layout
   const initialNodes: Node[] = useMemo(() => {
-    return tables.map((table, index) => ({
+    return tables.map((table) => ({
       id: table.name,
       type: 'tableNode',
       position: { x: 0, y: 0 }, // Will be set by ELK layout
       data: {
         label: table.name,
         columns: table.columns,
-        color: TABLE_COLORS[index % TABLE_COLORS.length],
+        color: TABLE_HEADER_COLOR,
       },
     }));
   }, [tables]);
