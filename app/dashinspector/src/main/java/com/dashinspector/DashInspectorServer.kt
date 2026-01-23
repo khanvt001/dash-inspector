@@ -3,13 +3,18 @@ package com.dashinspector
 import android.content.Context
 import android.util.Log
 import com.google.gson.Gson
-import fi.iki.elonen.NanoHTTPD
-import kotlinx.coroutines.CoroutineScope
+import io.ktor.http.*
+import io.ktor.serialization.gson.*
+import io.ktor.server.application.*
+import io.ktor.server.cio.*
+import io.ktor.server.engine.*
+import io.ktor.server.plugins.contentnegotiation.*
+import io.ktor.server.plugins.cors.routing.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import java.io.ByteArrayInputStream
 import java.io.FileNotFoundException
 
 /**
@@ -20,75 +25,141 @@ internal class DashInspectorServer(
     private val gson: Gson,
     private val prefsInspector: SharedPreferencesInspector,
     private val dbInspector: DatabaseInspector,
-    port: Int,
-) : NanoHTTPD(port) {
+    private val port: Int,
+) {
 
     private val assetManager = context.assets
+    private var server: EmbeddedServer<CIOApplicationEngine, CIOApplicationEngine.Configuration>? = null
 
     companion object {
         private const val TAG = "DashInspectorServer"
         private const val CONTENT_TYPE_JSON = "application/json"
 
-        private const val PREFS_PATH = "/api/preferences"
-        private const val DB_PATH = "/api/database"
-
         private val MIME_TYPES = mapOf(
-            "html" to "text/html",
-            "css" to "text/css",
-            "js" to "application/javascript",
-            "json" to CONTENT_TYPE_JSON,
-            "png" to "image/png",
-            "svg" to "image/svg+xml",
-            "ico" to "image/x-icon",
-            "woff" to "font/woff",
-            "woff2" to "font/woff2"
+            "html" to ContentType.Text.Html,
+            "css" to ContentType.Text.CSS,
+            "js" to ContentType.Application.JavaScript,
+            "json" to ContentType.Application.Json,
+            "png" to ContentType.Image.PNG,
+            "svg" to ContentType.Image.SVG,
+            "ico" to ContentType.parse("image/x-icon"),
+            "woff" to ContentType.parse("font/woff"),
+            "woff2" to ContentType.parse("font/woff2")
         )
     }
 
-    override fun serve(session: IHTTPSession?): Response {
-        if (session == null) {
-            return badRequest("Invalid request")
+    fun start() {
+        server = embeddedServer(CIO, port = port, host = "0.0.0.0") {
+            install(ContentNegotiation) {
+                gson {
+                    setPrettyPrinting()
+                }
+            }
+
+            install(CORS) {
+                anyHost()
+                allowHeader(HttpHeaders.ContentType)
+                allowMethod(HttpMethod.Get)
+                allowMethod(HttpMethod.Post)
+                allowMethod(HttpMethod.Put)
+                allowMethod(HttpMethod.Delete)
+                allowMethod(HttpMethod.Options)
+            }
+
+            routing {
+                // Preferences API routes
+                get("/api/preferences") {
+                    handleGetPreferences()
+                }
+
+                post("/api/preferences/create") {
+                    handleCreatePreference()
+                }
+
+                post("/api/preferences/remove") {
+                    handleRemovePreference()
+                }
+
+                post("/api/preferences/entry/add") {
+                    handleAddEntry()
+                }
+
+                post("/api/preferences/entry/update") {
+                    handleUpdateEntry()
+                }
+
+                post("/api/preferences/entry/remove") {
+                    handleRemoveEntry()
+                }
+
+                // Database API routes
+                get("/api/database") {
+                    handleGetDatabases()
+                }
+
+                post("/api/database/schema") {
+                    handleGetSchema()
+                }
+
+                post("/api/database/erd") {
+                    handleGetERD()
+                }
+
+                post("/api/database/table/data") {
+                    handleGetTableData()
+                }
+
+                post("/api/database/query") {
+                    handleExecuteQuery()
+                }
+
+                post("/api/database/table/update") {
+                    handleUpdateRow()
+                }
+
+                post("/api/database/table/delete") {
+                    handleDeleteRow()
+                }
+
+                post("/api/database/table/insert") {
+                    handleInsertRow()
+                }
+
+                // Static file serving
+                get("/{...}") {
+                    handleStaticFile(call.request.path())
+                }
+            }
         }
 
-        val uri = session.uri
-        val method = session.method
-
-        return when {
-            uri.startsWith("/api/preferences") -> handlePreferencesApi(uri, method, session)
-            uri.startsWith("/api/database") -> handleDatabaseApi(uri, method, session)
-            else -> serveStaticFile(uri)
-        }
+        server?.start(wait = false)
+        Log.d(TAG, "DashInspector server started on port $port")
     }
 
-    // region Preferences API
-
-    private fun handlePreferencesApi(uri: String, method: Method, session: IHTTPSession): Response {
-        return when (uri) {
-            PREFS_PATH -> getPreferences()
-            "$PREFS_PATH/create" -> handleCreatePreference(method, session)
-            "$PREFS_PATH/remove" -> handleRemovePreference(method, session)
-            "$PREFS_PATH/entry/add" -> handleAddEntry(method, session)
-            "$PREFS_PATH/entry/update" -> handleUpdateEntry(method, session)
-            "$PREFS_PATH/entry/remove" -> handleRemoveEntry(method, session)
-            else -> notImplemented("API endpoint not found")
-        }
+    fun stop() {
+        server?.stop(1000, 2000)
+        Log.d(TAG, "DashInspector server stopped")
     }
 
-    private fun getPreferences(): Response {
+    // region Preferences API Handlers
+
+    private suspend fun ApplicationCall.handleGetPreferences() {
         val prefs = prefsInspector.getAllPreferences()
-        return jsonResponse(prefs)
+        respond(HttpStatusCode.OK, prefs)
     }
 
-    private fun handleCreatePreference(method: Method, session: IHTTPSession): Response {
-        return requirePost(method) {
-            val request = parseBody<PrefRequest>(session) ?: return@requirePost badRequest("Invalid request body")
+    private suspend fun ApplicationCall.handleCreatePreference() {
+        try {
+            val request = receive<PrefRequest>()
 
             if (!request.isValidForCreate()) {
-                return@requirePost badRequest("Missing required fields: name, key, type")
+                respondError(HttpStatusCode.BadRequest, "Missing required fields: name, key, type")
+                return
             }
 
             if (!request.isValueValidForType()) {
-                return@requirePost badRequest("Value is required for type ${request.type}")
+                respondError(HttpStatusCode.BadRequest, "Value is required for type ${request.type}")
+                return
             }
 
             val result = prefsInspector.upsertPreference(
@@ -99,19 +170,24 @@ internal class DashInspectorServer(
             )
 
             handleInspectorResult(result, "SharedPreference '${request.name}' created successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error creating preference: ${e.message}")
+            respondError(HttpStatusCode.BadRequest, "Invalid request body")
         }
     }
 
-    private fun handleAddEntry(method: Method, session: IHTTPSession): Response {
-        return requirePost(method) {
-            val request = parseBody<PrefRequest>(session) ?: return@requirePost badRequest("Invalid request body")
+    private suspend fun ApplicationCall.handleAddEntry() {
+        try {
+            val request = receive<PrefRequest>()
 
             if (!request.isValidForCreate()) {
-                return@requirePost badRequest("Missing required fields: name, key, type")
+                respondError(HttpStatusCode.BadRequest, "Missing required fields: name, key, type")
+                return
             }
 
             if (!request.isValueValidForType()) {
-                return@requirePost badRequest("Value is required for type ${request.type}")
+                respondError(HttpStatusCode.BadRequest, "Value is required for type ${request.type}")
+                return
             }
 
             val result = prefsInspector.upsertPreference(
@@ -122,19 +198,24 @@ internal class DashInspectorServer(
             )
 
             handleInspectorResult(result, "Entry added successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error adding entry: ${e.message}")
+            respondError(HttpStatusCode.BadRequest, "Invalid request body")
         }
     }
 
-    private fun handleUpdateEntry(method: Method, session: IHTTPSession): Response {
-        return requirePost(method) {
-            val request = parseBody<PrefRequest>(session) ?: return@requirePost badRequest("Invalid request body")
+    private suspend fun ApplicationCall.handleUpdateEntry() {
+        try {
+            val request = receive<PrefRequest>()
 
             if (!request.isValidForCreate()) {
-                return@requirePost badRequest("Missing required fields: name, key, type")
+                respondError(HttpStatusCode.BadRequest, "Missing required fields: name, key, type")
+                return
             }
 
             if (!request.isValueValidForType()) {
-                return@requirePost badRequest("Value is required for type ${request.type}")
+                respondError(HttpStatusCode.BadRequest, "Value is required for type ${request.type}")
+                return
             }
 
             val result = prefsInspector.upsertPreference(
@@ -145,16 +226,19 @@ internal class DashInspectorServer(
             )
 
             handleInspectorResult(result, "Entry updated successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating entry: ${e.message}")
+            respondError(HttpStatusCode.BadRequest, "Invalid request body")
         }
     }
 
-    private fun handleRemoveEntry(method: Method, session: IHTTPSession): Response {
-        return requirePost(method) {
-            val request = parseBody<RemoveEntryRequest>(session)
-                ?: return@requirePost badRequest("Invalid request body")
+    private suspend fun ApplicationCall.handleRemoveEntry() {
+        try {
+            val request = receive<RemoveEntryRequest>()
 
             if (request.name.isNullOrEmpty() || request.key.isNullOrEmpty()) {
-                return@requirePost badRequest("Missing required fields: name, key")
+                respondError(HttpStatusCode.BadRequest, "Missing required fields: name, key")
+                return
             }
 
             val result = prefsInspector.removeEntry(
@@ -163,167 +247,156 @@ internal class DashInspectorServer(
             )
 
             handleInspectorResult(result)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error removing entry: ${e.message}")
+            respondError(HttpStatusCode.BadRequest, "Invalid request body")
         }
     }
 
-    private fun handleRemovePreference(method: Method, session: IHTTPSession): Response {
-        return requirePost(method) {
-            val request = parseBody<RemovePrefRequest>(session)
-                ?: return@requirePost badRequest("Invalid request body")
+    private suspend fun ApplicationCall.handleRemovePreference() {
+        try {
+            val request = receive<RemovePrefRequest>()
 
             if (request.name.isNullOrEmpty()) {
-                return@requirePost badRequest("Missing required field: name")
+                respondError(HttpStatusCode.BadRequest, "Missing required field: name")
+                return
             }
 
             val result = prefsInspector.removePreference(prefName = request.name)
             handleInspectorResult(result)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error removing preference: ${e.message}")
+            respondError(HttpStatusCode.BadRequest, "Invalid request body")
         }
     }
 
     // endregion
 
-    // region Database API
+    // region Database API Handlers
 
-    private fun handleDatabaseApi(uri: String, method: Method, session: IHTTPSession): Response {
-        return when (uri) {
-            DB_PATH -> getDatabases()
-            "$DB_PATH/schema" -> handleGetSchema(method, session)
-            "$DB_PATH/erd" -> handleGetERD(method, session)
-            "$DB_PATH/table/data" -> handleGetTableData(method, session)
-            "$DB_PATH/query" -> handleExecuteQuery(method, session)
-            "$DB_PATH/table/update" -> handleUpdateRow(method, session)
-            "$DB_PATH/table/delete" -> handleDeleteRow(method, session)
-            "$DB_PATH/table/insert" -> handleInsertRow(method, session)
-            else -> notImplemented("Database API endpoint not found")
-        }
-    }
-
-    private fun getDatabases(): Response {
-        return try {
+    private suspend fun ApplicationCall.handleGetDatabases() {
+        try {
             val databases = runBlocking(Dispatchers.IO) {
                 dbInspector.getAllDatabases()
             }
-            jsonResponse(databases)
+            respond(HttpStatusCode.OK, databases)
         } catch (e: Exception) {
             Log.e(TAG, "Error getting databases: ${e.message}")
-            badRequest("Failed to get databases: ${e.message}")
+            respondError(HttpStatusCode.BadRequest, "Failed to get databases: ${e.message}")
         }
     }
 
-    private fun handleGetSchema(method: Method, session: IHTTPSession): Response {
-        return requirePost(method) {
-            val request = parseBody<DatabaseRequest>(session)
-                ?: return@requirePost badRequest("Invalid request body")
+    private suspend fun ApplicationCall.handleGetSchema() {
+        try {
+            val request = receive<DatabaseRequest>()
 
             if (request.database.isNullOrEmpty()) {
-                return@requirePost badRequest("Missing required field: database")
+                respondError(HttpStatusCode.BadRequest, "Missing required field: database")
+                return
             }
 
-            try {
-                val schema = runBlocking(Dispatchers.IO) {
-                    dbInspector.getDatabaseSchema(request.database)
-                }
-                jsonResponse(schema)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error getting schema: ${e.message}")
-                badRequest("Failed to get schema: ${e.message}")
+            val schema = runBlocking(Dispatchers.IO) {
+                dbInspector.getDatabaseSchema(request.database)
             }
+            respond(HttpStatusCode.OK, schema)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting schema: ${e.message}")
+            respondError(HttpStatusCode.BadRequest, "Failed to get schema: ${e.message}")
         }
     }
 
-    private fun handleGetERD(method: Method, session: IHTTPSession): Response {
-        return requirePost(method) {
-            val request = parseBody<DatabaseRequest>(session)
-                ?: return@requirePost badRequest("Invalid request body")
+    private suspend fun ApplicationCall.handleGetERD() {
+        try {
+            val request = receive<DatabaseRequest>()
 
             if (request.database.isNullOrEmpty()) {
-                return@requirePost badRequest("Missing required field: database")
+                respondError(HttpStatusCode.BadRequest, "Missing required field: database")
+                return
             }
 
-            try {
-                val erd = runBlocking(Dispatchers.IO) {
-                    dbInspector.getERD(request.database)
-                }
-                jsonResponse(erd)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error getting ERD: ${e.message}")
-                badRequest("Failed to get ERD: ${e.message}")
+            val erd = runBlocking(Dispatchers.IO) {
+                dbInspector.getERD(request.database)
             }
+            respond(HttpStatusCode.OK, erd)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting ERD: ${e.message}")
+            respondError(HttpStatusCode.BadRequest, "Failed to get ERD: ${e.message}")
         }
     }
 
-    private fun handleGetTableData(method: Method, session: IHTTPSession): Response {
-        return requirePost(method) {
-            val request = parseBody<TableDataRequest>(session)
-                ?: return@requirePost badRequest("Invalid request body")
+    private suspend fun ApplicationCall.handleGetTableData() {
+        try {
+            val request = receive<TableDataRequest>()
 
             if (request.database.isNullOrEmpty()) {
-                return@requirePost badRequest("Missing required field: database")
+                respondError(HttpStatusCode.BadRequest, "Missing required field: database")
+                return
             }
             if (request.table.isNullOrEmpty()) {
-                return@requirePost badRequest("Missing required field: table")
+                respondError(HttpStatusCode.BadRequest, "Missing required field: table")
+                return
             }
 
-            try {
-                val data = runBlocking(Dispatchers.IO) {
-                    dbInspector.getTableData(
-                        databaseName = request.database,
-                        tableName = request.table,
-                        page = request.page,
-                        pageSize = request.pageSize
-                    )
-                }
-                jsonResponse(data)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error getting table data: ${e.message}")
-                badRequest("Failed to get table data: ${e.message}")
+            val data = runBlocking(Dispatchers.IO) {
+                dbInspector.getTableData(
+                    databaseName = request.database,
+                    tableName = request.table,
+                    page = request.page,
+                    pageSize = request.pageSize
+                )
             }
+            respond(HttpStatusCode.OK, data)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting table data: ${e.message}")
+            respondError(HttpStatusCode.BadRequest, "Failed to get table data: ${e.message}")
         }
     }
 
-    private fun handleExecuteQuery(method: Method, session: IHTTPSession): Response {
-        return requirePost(method) {
-            val request = parseBody<QueryRequest>(session)
-                ?: return@requirePost badRequest("Invalid request body")
+    private suspend fun ApplicationCall.handleExecuteQuery() {
+        try {
+            val request = receive<QueryRequest>()
 
             if (request.database.isNullOrEmpty()) {
-                return@requirePost badRequest("Missing required field: database")
+                respondError(HttpStatusCode.BadRequest, "Missing required field: database")
+                return
             }
             if (request.query.isNullOrEmpty()) {
-                return@requirePost badRequest("Missing required field: query")
+                respondError(HttpStatusCode.BadRequest, "Missing required field: query")
+                return
             }
 
-            try {
-                val result = runBlocking(Dispatchers.IO) {
-                    dbInspector.executeQuery(request.database, request.query)
-                }
-                jsonResponse(result)
-            } catch (e: SecurityException) {
-                Log.e(TAG, "Security error executing query: ${e.message}")
-                badRequest(e.message ?: "Query not allowed")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error executing query: ${e.message}")
-                badRequest("Failed to execute query: ${e.message}")
+            val result = runBlocking(Dispatchers.IO) {
+                dbInspector.executeQuery(request.database, request.query)
             }
+            respond(HttpStatusCode.OK, result)
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Security error executing query: ${e.message}")
+            respondError(HttpStatusCode.BadRequest, e.message ?: "Query not allowed")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error executing query: ${e.message}")
+            respondError(HttpStatusCode.BadRequest, "Failed to execute query: ${e.message}")
         }
     }
 
-    private fun handleUpdateRow(method: Method, session: IHTTPSession): Response {
-        return requirePost(method) {
-            val request = parseBody<UpdateRowRequest>(session)
-                ?: return@requirePost badRequest("Invalid request body")
+    private suspend fun ApplicationCall.handleUpdateRow() {
+        try {
+            val request = receive<UpdateRowRequest>()
 
             if (request.database.isNullOrEmpty()) {
-                return@requirePost badRequest("Missing required field: database")
+                respondError(HttpStatusCode.BadRequest, "Missing required field: database")
+                return
             }
             if (request.table.isNullOrEmpty()) {
-                return@requirePost badRequest("Missing required field: table")
+                respondError(HttpStatusCode.BadRequest, "Missing required field: table")
+                return
             }
             if (request.primaryKey.isNullOrEmpty()) {
-                return@requirePost badRequest("Missing required field: primaryKey")
+                respondError(HttpStatusCode.BadRequest, "Missing required field: primaryKey")
+                return
             }
             if (request.values.isNullOrEmpty()) {
-                return@requirePost badRequest("Missing required field: values")
+                respondError(HttpStatusCode.BadRequest, "Missing required field: values")
+                return
             }
 
             val result = runBlocking(Dispatchers.IO) {
@@ -336,22 +409,27 @@ internal class DashInspectorServer(
             }
 
             handleInspectorResult(result)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating row: ${e.message}")
+            respondError(HttpStatusCode.BadRequest, "Invalid request body")
         }
     }
 
-    private fun handleDeleteRow(method: Method, session: IHTTPSession): Response {
-        return requirePost(method) {
-            val request = parseBody<DeleteRowRequest>(session)
-                ?: return@requirePost badRequest("Invalid request body")
+    private suspend fun ApplicationCall.handleDeleteRow() {
+        try {
+            val request = receive<DeleteRowRequest>()
 
             if (request.database.isNullOrEmpty()) {
-                return@requirePost badRequest("Missing required field: database")
+                respondError(HttpStatusCode.BadRequest, "Missing required field: database")
+                return
             }
             if (request.table.isNullOrEmpty()) {
-                return@requirePost badRequest("Missing required field: table")
+                respondError(HttpStatusCode.BadRequest, "Missing required field: table")
+                return
             }
             if (request.primaryKey.isNullOrEmpty()) {
-                return@requirePost badRequest("Missing required field: primaryKey")
+                respondError(HttpStatusCode.BadRequest, "Missing required field: primaryKey")
+                return
             }
 
             val result = runBlocking(Dispatchers.IO) {
@@ -363,22 +441,27 @@ internal class DashInspectorServer(
             }
 
             handleInspectorResult(result)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error deleting row: ${e.message}")
+            respondError(HttpStatusCode.BadRequest, "Invalid request body")
         }
     }
 
-    private fun handleInsertRow(method: Method, session: IHTTPSession): Response {
-        return requirePost(method) {
-            val request = parseBody<InsertRowRequest>(session)
-                ?: return@requirePost badRequest("Invalid request body")
+    private suspend fun ApplicationCall.handleInsertRow() {
+        try {
+            val request = receive<InsertRowRequest>()
 
             if (request.database.isNullOrEmpty()) {
-                return@requirePost badRequest("Missing required field: database")
+                respondError(HttpStatusCode.BadRequest, "Missing required field: database")
+                return
             }
             if (request.table.isNullOrEmpty()) {
-                return@requirePost badRequest("Missing required field: table")
+                respondError(HttpStatusCode.BadRequest, "Missing required field: table")
+                return
             }
             if (request.values.isNullOrEmpty()) {
-                return@requirePost badRequest("Missing required field: values")
+                respondError(HttpStatusCode.BadRequest, "Missing required field: values")
+                return
             }
 
             val result = runBlocking(Dispatchers.IO) {
@@ -390,6 +473,9 @@ internal class DashInspectorServer(
             }
 
             handleInspectorResult(result)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error inserting row: ${e.message}")
+            respondError(HttpStatusCode.BadRequest, "Invalid request body")
         }
     }
 
@@ -397,134 +483,74 @@ internal class DashInspectorServer(
 
     // region Static File Serving
 
-    private fun serveStaticFile(uri: String): Response {
+    private suspend fun ApplicationCall.handleStaticFile(uri: String) {
         val path = when {
             uri == "/" -> "index.html"
             uri.startsWith("/") -> uri.substring(1)
             else -> uri
         }
 
-        return try {
+        try {
             val inputStream = assetManager.open(path)
             val bytes = inputStream.readBytes()
             inputStream.close()
 
-            newFixedLengthResponse(
-                Response.Status.OK,
-                getMimeType(path),
-                ByteArrayInputStream(bytes),
-                bytes.size.toLong()
-            )
+            val contentType = getMimeType(path)
+            response.header(HttpHeaders.ContentType, contentType.toString())
+            respond(HttpStatusCode.OK, bytes)
         } catch (e: FileNotFoundException) {
             // SPA fallback: serve index.html for routes without file extensions
             if (!path.contains(".")) {
-                return serveStaticFile("/index.html")
+                handleStaticFile("/")
+                return
             }
-            notFound("File not found: $path")
+            respondText("File not found: $path", ContentType.Text.Plain, HttpStatusCode.NotFound)
         } catch (e: Exception) {
-            internalError("Error serving file: ${e.message}")
+            Log.e(TAG, "Error serving file: ${e.message}")
+            respondText("Error serving file: ${e.message}", ContentType.Text.Plain, HttpStatusCode.InternalServerError)
         }
     }
 
-    private fun getMimeType(path: String): String {
+    private fun getMimeType(path: String): ContentType {
         val extension = path.substringAfterLast('.', "")
-        return MIME_TYPES[extension] ?: "application/octet-stream"
+        return MIME_TYPES[extension] ?: ContentType.Application.OctetStream
     }
 
     // endregion
 
     // region Helper Functions
 
-    private inline fun requirePost(method: Method, block: () -> Response): Response {
-        return if (method == Method.POST) {
-            block()
-        } else {
-            methodNotAllowed()
-        }
-    }
-
-    private inline fun <reified T> parseBody(session: IHTTPSession): T? {
-        return try {
-            val postData = HashMap<String, String>()
-            session.parseBody(postData)
-            Log.d(TAG, "Request body: $postData")
-            gson.fromJson(postData["postData"], T::class.java)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error parsing request body: ${e.message}")
-            null
-        }
-    }
-
-    private fun handleInspectorResult(
+    private suspend fun ApplicationCall.handleInspectorResult(
         result: Map<String, String>,
         successMessage: String? = null
-    ): Response {
-        return if (result["status"] == "error") {
-            badRequest(result["message"] ?: "Unknown error")
+    ) {
+        if (result["status"] == "error") {
+            respondError(HttpStatusCode.BadRequest, result["message"] ?: "Unknown error")
         } else {
-            successResponse(successMessage ?: result["message"] ?: "Success")
+            respondSuccess(successMessage ?: result["message"] ?: "Success")
         }
     }
 
-    // endregion
-
-    // region Response Builders
-
-    private fun jsonResponse(data: Any): Response {
-        return newFixedLengthResponse(
-            Response.Status.OK,
-            CONTENT_TYPE_JSON,
-            gson.toJson(data)
-        )
+    private suspend fun ApplicationCall.respondSuccess(message: String) {
+        respond(HttpStatusCode.OK, mapOf("message" to message))
     }
 
-    private fun successResponse(message: String): Response {
-        return newFixedLengthResponse(
-            Response.Status.OK,
-            CONTENT_TYPE_JSON,
-            """{"message":"$message"}"""
-        )
-    }
-
-    private fun badRequest(message: String): Response {
-        return newFixedLengthResponse(
-            Response.Status.BAD_REQUEST,
-            CONTENT_TYPE_JSON,
-            """{"error":"$message"}"""
-        )
-    }
-
-    private fun notFound(message: String): Response {
-        return newFixedLengthResponse(
-            Response.Status.NOT_FOUND,
-            "text/plain",
-            message
-        )
-    }
-
-    private fun methodNotAllowed(): Response {
-        return newFixedLengthResponse(
-            Response.Status.METHOD_NOT_ALLOWED,
-            CONTENT_TYPE_JSON,
-            """{"error":"Method not allowed"}"""
-        )
-    }
-
-    private fun notImplemented(message: String): Response {
-        return newFixedLengthResponse(
-            Response.Status.NOT_IMPLEMENTED,
-            CONTENT_TYPE_JSON,
-            """{"error":"$message"}"""
-        )
-    }
-
-    private fun internalError(message: String): Response {
-        return newFixedLengthResponse(
-            Response.Status.INTERNAL_ERROR,
-            "text/plain",
-            message
-        )
+    private suspend fun ApplicationCall.respondError(status: HttpStatusCode, message: String) {
+        respond(status, mapOf("error" to message))
     }
 
     // endregion
 }
+
+// region Extension functions for validation
+internal fun PrefRequest.isValidForCreate(): Boolean {
+    return !name.isNullOrEmpty() && !key.isNullOrEmpty() && !type.isNullOrEmpty()
+}
+
+internal fun PrefRequest.isValueValidForType(): Boolean {
+    return when (type) {
+        "Boolean", "Int", "Long", "Float", "String" -> !value.isNullOrEmpty()
+        else -> false
+    }
+}
+// endregion
