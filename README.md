@@ -7,6 +7,7 @@ A lightweight runtime debugging library for Android that provides a web-based in
 ## Features
 
 - **SharedPreferences Inspector**: View, create, update, and delete SharedPreference entries in real-time
+- **SQLite-RoomDB Inspector**: CRUD operation, ERD Visualization
 - **Web-based UI**: Access the inspector through any browser on your development machine
 - **Zero Configuration**: Simple one-line initialization
 - **Lightweight**: Minimal impact on app performance
@@ -20,13 +21,17 @@ A lightweight runtime debugging library for Android that provides a web-based in
 
 ![Screenshot 3](screenshots/img_2.png)
 
+![Screenshot 4](screenshots/img_3.png)
+
+![Screenshot 5](screenshots/img_4.png)
+
 ## Installation
 
 ### Gradle (Groovy)
 
 ```groovy
 dependencies {
-    debugImplementation 'com.github.khanvt001:dash-inspector:0.1.0'
+    debugImplementation 'com.github.khanvt001:dash-inspector:0.1.1'
 }
 ```
 
@@ -34,7 +39,7 @@ dependencies {
 
 ```kotlin
 dependencies {
-    debugImplementation("com.github.khanvt001:dash-inspector:0.1.0")
+    debugImplementation("com.github.khanvt001:dash-inspector:0.1.1")
 }
 ```
 
@@ -68,7 +73,7 @@ Then add the dependency:
 
 ```kotlin
 dependencies {
-    debugImplementation("com.github.khanvt001:dash-inspector:0.1.0")
+    debugImplementation("com.github.khanvt001:dash-inspector:0.1.1")
 }
 ```
 
@@ -76,7 +81,7 @@ dependencies {
 
 ```groovy
 dependencies {
-    debugImplementation 'com.github.khanvt001:dash-inspector:0.1.0'
+    debugImplementation 'com.github.khanvt001:dash-inspector:0.1.1'
 }
 ```
 
@@ -183,6 +188,8 @@ public class MyApplication extends Application {
 - `Boolean`
 - `StringSet`
 
+### Database Endpoints
+
 ## Requirements
 
 - **Min SDK**: 24 (Android 7.0)
@@ -193,12 +200,13 @@ public class MyApplication extends Application {
 
 DashInspector uses the following libraries:
 
-- [NanoHTTPD](https://github.com/NanoHttpd/nanohttpd) - Lightweight HTTP server
+- [Ktor](https://github.com/ktorio/ktor) - Kotlin HTTP server
 - [Gson](https://github.com/google/gson) - JSON serialization
+- [Kotlinx Coroutines](https://github.com/Kotlin/kotlinx.coroutines) - Kotlin coroutines support
 
 ## Security Considerations
 
-**Important**: DashInspector is intended for development and debugging purposes only. It provides full read/write access to your app's SharedPreferences.
+**Important**: DashInspector is intended for development and debugging purposes only. It provides full read/write access to your app's SharedPreferences and SQLite/RoomDB.
 
 Recommendations:
 - Only include DashInspector in debug builds using `debugImplementation`

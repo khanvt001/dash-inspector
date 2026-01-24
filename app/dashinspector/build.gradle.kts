@@ -58,7 +58,7 @@ afterEvaluate {
                 from(components["release"])
                 groupId = "com.github.khanvt001"
                 artifactId = "dash-inspector"
-                version = "0.1.0"
+                version = "0.1.1"
             }
         }
     }
