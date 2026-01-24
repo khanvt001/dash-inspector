@@ -8,7 +8,7 @@ import java.io.File
 /**
  * Inspector class for reading and modifying SharedPreferences at runtime.
  */
-internal class SharedPreferencesInspector(private val context: Context) {
+class SharedPreferencesInspector(private val context: Context) {
 
     /**
      * Retrieves all SharedPreference files and their entries.

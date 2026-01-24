@@ -69,7 +69,7 @@ export default function Layout() {
         </nav>
 
         <div className="sidebar-footer">
-          <p className="version-text">Author: khanvt001 - Version: 0.1.0</p>
+          <p className="version-text">Author: khanvt001 - Version: 0.1.1</p>
         </div>
       </aside>
 
