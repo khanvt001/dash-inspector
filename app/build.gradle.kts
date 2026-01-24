@@ -59,5 +59,5 @@ dependencies {
 
 //    debugImplementation("com.github.khanvt001:dash-inspector:0.1.0")
 
-    debugImplementation(project(":app:dashinspector"))
+    implementation(project(":app:dashinspector"))
 }
