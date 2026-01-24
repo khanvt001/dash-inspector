@@ -31,8 +31,7 @@ internal class DashInspectorServer(
 ) {
 
     private val assetManager = context.assets
-    private var server: EmbeddedServer<CIOApplicationEngine, CIOApplicationEngine.Configuration>? = null
-
+    private var server: ApplicationEngine? = null
     companion object {
         private const val TAG = "DashInspectorServer"
     }
@@ -44,9 +43,7 @@ internal class DashInspectorServer(
         server = embeddedServer(CIO, port = port, host = "0.0.0.0") {
             configurePlugins()
             configureRoutes()
-        }
-
-        server?.start(wait = false)
+        }.start(false)
         Log.d(TAG, "DashInspector server started on port $port")
     }
 
@@ -95,16 +92,3 @@ internal class DashInspectorServer(
         }
     }
 }
-
-// region Extension functions for validation
-internal fun PrefRequest.isValidForCreate(): Boolean {
-    return !name.isNullOrEmpty() && !key.isNullOrEmpty() && !type.isNullOrEmpty()
-}
-
-internal fun PrefRequest.isValueValidForType(): Boolean {
-    return when (type) {
-        "Boolean", "Int", "Long", "Float", "String" -> !value.isNullOrEmpty()
-        else -> false
-    }
-}
-// endregion

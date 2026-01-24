@@ -1,6 +1,7 @@
 package com.dashinspector.routes
 
 import com.dashinspector.handlers.PreferencesHandler
+import io.ktor.server.application.call
 import io.ktor.server.routing.*
 
 /**

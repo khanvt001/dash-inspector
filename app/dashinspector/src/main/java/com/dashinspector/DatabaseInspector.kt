@@ -11,7 +11,7 @@ import java.io.File
 /**
  * Inspector class for reading and modifying SQLite/Room databases at runtime.
  */
-internal class DatabaseInspector(private val context: Context) {
+class DatabaseInspector(private val context: Context) {
 
     companion object {
         private const val DEFAULT_PAGE_SIZE = 50

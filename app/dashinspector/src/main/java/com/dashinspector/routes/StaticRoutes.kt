@@ -4,6 +4,7 @@ import android.content.res.AssetManager
 import android.util.Log
 import io.ktor.http.*
 import io.ktor.server.application.*
+import io.ktor.server.request.path
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import java.io.FileNotFoundException
